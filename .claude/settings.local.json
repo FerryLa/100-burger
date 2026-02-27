@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create vite@latest . -- --template react)",
+      "Bash(npm create vite@latest . -- --template react --force)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx create-vite@latest . --template react)",
+      "Bash(printf 'y\\\\n')",
+      "Bash(npx --yes create-vite . --template react)",
+      "Bash(npm install zustand)",
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm --version)"
+    ]
+  }
+}

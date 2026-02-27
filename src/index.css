@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Noto Sans KR', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: #fef9f0;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* 고령자 친화적 버튼 공통 스타일 */
+.btn-elder {
+  @apply text-2xl font-bold py-5 px-8 rounded-2xl shadow-lg
+         active:scale-95 transition-transform duration-100
+         select-none cursor-pointer;
+  min-height: 72px;
+  min-width: 200px;
+}
+
+/* 이소메트릭 방 배경 */
+.isometric-room {
+  background: linear-gradient(135deg, #f5e6c8 0%, #ede0c4 50%, #e0d0b0 100%);
+}
