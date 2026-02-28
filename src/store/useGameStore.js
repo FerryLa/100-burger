@@ -8,6 +8,9 @@ export const useGameStore = create((set) => ({
   inviteCode: null,
   familyConnected: false,
 
+  // 누적 달성 (쿠폰 기준)
+  totalBurgers: 0,
+
   // 게임 상태 (Firestore 실시간 미러)
   gameState: null,
 
@@ -20,7 +23,9 @@ export const useGameStore = create((set) => ({
     familyId: data.familyId,
     inviteCode: data.inviteCode,
     familyConnected: !!(data.parentUid && data.childUid),
+    totalBurgers: data.totalBurgers || 0,
   }),
-  setGameState: (gameState) => set({ gameState }),
-  setMessages: (messages) => set({ messages }),
+  setGameState:  (gameState)  => set({ gameState }),
+  setMessages:   (messages)   => set({ messages }),
+  setTotalBurgers: (n)        => set({ totalBurgers: n }),
 }))

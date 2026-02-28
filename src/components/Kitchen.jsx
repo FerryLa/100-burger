@@ -281,6 +281,8 @@ function SauceStage({ easy, onComplete }) {
   )
 }
 
+const COOK_LIMIT_SECS = 3 * 60  // 조리 제한: 3분
+
 // ─── 메인 Kitchen ─────────────────────────────────────────────────────────────
 export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
   const { role, familyId, user } = useGameStore(s => s)
@@ -289,6 +291,8 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
   const [stageIndex, setStageIndex] = useState(0)
   const [startTime,  setStartTime]  = useState(null)
   const [error,      setError]      = useState('')
+  const [remaining,  setRemaining]  = useState(COOK_LIMIT_SECS)  // 남은 조리 시간(초)
+  const timerRef = useRef(null)
 
   const hasVeggies = (inventory?.veggies || 0) >= 1
   const hasBread   = (inventory?.bread   || 0) >= 1
@@ -298,18 +302,38 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
   const allReady   = hasVeggies && hasBread && hasPatty && hasBacon && hasSauce
   const easy       = allReady
 
+  // 오늘 이미 완성했으면 done 상태로
   const burgerDone = gameState?.burgerCompletedAt
-
   useEffect(() => { if (burgerDone) setPhase('done') }, [burgerDone])
+
+  // 조리 중 카운트다운 타이머
+  useEffect(() => {
+    if (phase !== 'cooking') {
+      clearInterval(timerRef.current); return
+    }
+    timerRef.current = setInterval(() => {
+      setRemaining(r => {
+        if (r <= 1) {
+          clearInterval(timerRef.current)
+          setPhase('timeout')
+          return 0
+        }
+        return r - 1
+      })
+    }, 1000)
+    return () => clearInterval(timerRef.current)
+  }, [phase])
 
   async function handleStart() {
     if (!allReady) { setError('재료가 부족해요.'); return }
+    if (gameState?.burgerCompletedAt) { setError('오늘은 이미 조리를 완료했어요!'); return }
     setError('')
     try {
       await consumeIngredients(familyId, { veggies: 1, bread: 1, patty: 1, bacon: 1, sauce: 1 })
       await startBurger(familyId)
       await sendMessage(familyId, user.uid, 'child', '아이가 햄버거를 만들기 시작했어요! 🍔', true)
       setStartTime(Date.now())
+      setRemaining(COOK_LIMIT_SECS)
       setPhase('cooking')
     } catch (e) { setError(e.message) }
   }
@@ -318,15 +342,21 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
     if (stageIndex < STAGES.length - 1) {
       setStageIndex(i => i + 1)
     } else {
+      clearInterval(timerRef.current)
       setPhase('done')
-      const count   = await completeBurger(familyId)
+      const result  = await completeBurger(familyId)
       const elapsed = Math.round((Date.now() - (startTime || Date.now())) / 1000)
       const m = Math.floor(elapsed / 60), s = elapsed % 60
       await sendMessage(familyId, user.uid, 'child',
-        `햄버거 완성! 🍔 ${m}분 ${s}초 (총 ${count}개)`, true)
-      onComplete?.(count)
+        `햄버거 완성! 🍔 ${m}분 ${s}초 (누적 ${result.total}개)`, true)
+      onComplete?.(result)
     }
   }
+
+  // 타이머 초과 표시
+  const timerColor = remaining <= 30 ? '#ef4444' : remaining <= 60 ? '#f97316' : '#22c55e'
+  const timerMin   = Math.floor(remaining / 60)
+  const timerSec   = remaining % 60
 
   // 부모 시점
   if (role === 'parent') {
@@ -334,9 +364,14 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
       <div className="flex flex-col items-center gap-4">
         <h2 className="text-2xl font-black text-orange-700">🍳 주방</h2>
         {phase === 'done'
-          ? <div className="text-center"><p className="text-5xl">🍔</p><p className="text-xl font-black text-yellow-800 mt-2">완성! 누적 {gameState?.burgerCount || 0}개</p></div>
+          ? <div className="text-center"><p className="text-5xl">🍔</p><p className="text-xl font-black text-yellow-800 mt-2">완성! 오늘 {gameState?.burgerCount || 0}개</p></div>
           : phase === 'cooking'
-            ? <p className="text-center font-bold text-orange-700">🍳 아이가 [{STAGES[stageIndex].emoji} {STAGES[stageIndex].label}] 중이에요!</p>
+            ? (
+              <div className="text-center">
+                <p className="font-bold text-orange-700">🍳 아이가 [{STAGES[stageIndex]?.emoji} {STAGES[stageIndex]?.label}] 중!</p>
+                <p className="text-sm text-gray-500 mt-1">남은 시간: {timerMin}:{String(timerSec).padStart(2,'0')}</p>
+              </div>
+            )
             : <p className="text-orange-500">아이가 아직 요리를 시작하지 않았어요</p>}
         <button onClick={onClose} className="text-gray-400 underline text-sm mt-2">닫기</button>
       </div>
@@ -347,17 +382,33 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
     <div className="flex flex-col items-center gap-4">
       <h2 className="text-2xl font-black text-orange-700">🍳 주방</h2>
 
+      {/* 완성 */}
       {phase === 'done' && (
         <div className="w-full bg-yellow-100 rounded-2xl p-5 text-center shadow">
           <p className="text-5xl mb-2">🍔</p>
-          <p className="text-2xl font-black text-yellow-800">완성!</p>
-          <p className="text-base text-yellow-700 mt-1">누적 {gameState?.burgerCount || 0}개 🎉</p>
+          <p className="text-2xl font-black text-yellow-800">오늘의 햄버거 완성!</p>
+          <p className="text-sm text-yellow-700 mt-1">하루 1개 제한 — 내일 또 만들어요 🎉</p>
           <button onClick={onClose} className="mt-3 text-gray-500 underline text-sm">닫기</button>
         </div>
       )}
 
+      {/* 시간 초과 */}
+      {phase === 'timeout' && (
+        <div className="w-full bg-red-50 rounded-2xl p-5 text-center shadow">
+          <p className="text-4xl mb-2">⏰</p>
+          <p className="text-xl font-black text-red-700">3분이 지났어요!</p>
+          <p className="text-sm text-red-500 mt-1">재료는 소비됐어요. 내일 다시 도전!</p>
+          <button onClick={onClose} className="mt-3 text-gray-500 underline text-sm">닫기</button>
+        </div>
+      )}
+
+      {/* 재료 확인 */}
       {phase === 'check' && (
         <>
+          {/* 하루 1회 제한 안내 */}
+          <div className="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-700 text-center font-bold">
+            ⏱ 조리 제한: 3분 이내 &nbsp;|&nbsp; 하루 1개만 조리 가능
+          </div>
           <div className="w-full bg-white rounded-2xl p-4 shadow-sm text-sm">
             <p className="font-bold text-gray-600 mb-2">필요 재료 확인</p>
             {[['🥬','채소',hasVeggies],['🍞','빵',hasBread],['🥩','패티',hasPatty],
@@ -370,23 +421,36 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
             ))}
           </div>
           {error && <p className="text-red-500 font-bold text-sm text-center">{error}</p>}
-          {allReady
-            ? <button onClick={handleStart} className="btn-elder w-full bg-orange-500 text-white">🍔 요리 시작!</button>
-            : <div className="w-full bg-yellow-50 rounded-2xl p-3 text-center text-yellow-700 text-sm">냉장고를 채우거나 발주대에서 주문하세요 📦</div>}
+          {gameState?.burgerCompletedAt
+            ? <div className="w-full bg-green-50 rounded-2xl p-3 text-center text-green-700 text-sm font-bold">✅ 오늘의 햄버거를 이미 완성했어요!</div>
+            : allReady
+              ? <button onClick={handleStart} className="btn-elder w-full bg-orange-500 text-white">🍔 요리 시작! (3분 제한)</button>
+              : <div className="w-full bg-yellow-50 rounded-2xl p-3 text-center text-yellow-700 text-sm">냉장고를 채우거나 발주대에서 주문하세요 📦</div>}
           <button onClick={onClose} className="text-gray-400 underline text-sm">닫기</button>
         </>
       )}
 
+      {/* 조리 중 */}
       {phase === 'cooking' && (
         <>
-          <div className="flex gap-1 w-full">
-            {STAGES.map((s, i) => (
-              <div key={s.id} className={`flex-1 text-center py-1.5 rounded-full text-xs font-bold
-                ${i < stageIndex ? 'bg-green-400 text-white' : i === stageIndex ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                {i < stageIndex ? '✓' : s.emoji}
-              </div>
-            ))}
+          {/* 타이머 */}
+          <div className="w-full flex items-center justify-between px-2">
+            <div className="flex gap-1 flex-1 mr-3">
+              {STAGES.map((s, i) => (
+                <div key={s.id} className={`flex-1 text-center py-1.5 rounded-full text-xs font-bold
+                  ${i < stageIndex ? 'bg-green-400 text-white' : i === stageIndex ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                  {i < stageIndex ? '✓' : s.emoji}
+                </div>
+              ))}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xs text-gray-400">남은 시간</p>
+              <p className="text-lg font-black" style={{ color: timerColor }}>
+                {timerMin}:{String(timerSec).padStart(2, '0')}
+              </p>
+            </div>
           </div>
+
           <h3 className="text-xl font-black text-orange-800">{STAGES[stageIndex].emoji} {STAGES[stageIndex].label}</h3>
           {stageIndex === 0 && <BaconGrillStage easy={easy} onComplete={handleStageComplete} />}
           {stageIndex === 1 && <SetupStage      easy={easy} onComplete={handleStageComplete} />}

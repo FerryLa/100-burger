@@ -11,7 +11,15 @@
       "Bash(npm install)",
       "Bash(npm run build)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(npm --version)"
+      "Bash(npm --version)",
+      "Bash(where npm)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(\"C:/Program Files/nodejs/npm.cmd\" run build)",
+      "Bash(npm install three)",
+      "Bash(npx vite build)",
+      "Bash(curl -s http://localhost:5176/)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(node --input-type=module:*)"
     ]
   }
 }

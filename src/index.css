@@ -14,7 +14,7 @@ body {
   min-height: 100vh;
 }
 
-/* 고령자 친화적 버튼 공통 스타일 */
+/* ── 고령자 친화적 버튼 ── */
 .btn-elder {
   @apply text-2xl font-bold py-5 px-8 rounded-2xl shadow-lg
          active:scale-95 transition-transform duration-100
@@ -23,7 +23,82 @@ body {
   min-width: 200px;
 }
 
-/* 이소메트릭 방 배경 */
-.isometric-room {
-  background: linear-gradient(135deg, #f5e6c8 0%, #ede0c4 50%, #e0d0b0 100%);
+/* ── 아이소메트릭 미니룸 ── */
+.miniroom-modern {
+  background: linear-gradient(135deg, #fef9f0 0%, #f5ece0 100%);
+}
+
+.miniroom-hanok {
+  background: linear-gradient(135deg, #2d1f12 0%, #1a120a 100%);
+}
+
+/* ── 오브젝트 3D 박스 그림자 ── */
+.object-box {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.object-box:hover {
+  transform: translateY(-2px);
+}
+
+/* ── 캐릭터 그림자 ── */
+.char-shadow {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* ── 말풍선 bounce ── */
+@keyframes float-up {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-5px); }
+}
+.float-anim {
+  animation: float-up 1.2s ease-in-out infinite;
+}
+
+/* ── 따뜻한 펄스 (운반 힌트) ── */
+@keyframes warm-pulse {
+  0%, 100% { box-shadow: 0 5px 0 0 #f59e0b, 0 6px 12px rgba(245,158,11,0.2); }
+  50%       { box-shadow: 0 5px 0 0 #d97706, 0 6px 20px rgba(245,158,11,0.4); }
+}
+.carry-hint {
+  animation: warm-pulse 1.4s ease-in-out infinite;
+}
+
+/* ── 한옥 테마 배경 패턴 ── */
+.hanok-pattern {
+  background-image:
+    repeating-linear-gradient(
+      0deg, transparent, transparent 38px,
+      rgba(107,58,24,0.08) 38px, rgba(107,58,24,0.08) 40px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 38px,
+      rgba(107,58,24,0.08) 38px, rgba(107,58,24,0.08) 40px
+    );
+}
+
+/* ── 게임 헤더 ── */
+.game-header-modern {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+.game-header-hanok {
+  background: linear-gradient(90deg, #6b3a18 0%, #4a2810 100%);
+}
+
+/* ── 테마 전환 버튼 ── */
+.theme-btn {
+  @apply px-3 py-1.5 rounded-xl text-sm font-black transition-all duration-200;
+  border: 2px solid transparent;
+}
+.theme-btn-active {
+  @apply scale-105;
+  border-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.2);
+}
+
+/* ── 모달 ── */
+.modal-modern {
+  background: linear-gradient(160deg, #fffbf5 0%, #fef3e2 100%);
+}
+.modal-hanok {
+  background: linear-gradient(160deg, #f5e6c0 0%, #ecd8a0 100%);
 }

@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "100-burger",
-      "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
-      "runtimeArgs": ["run", "dev"],
+      "name": "dev",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "cd /d C:\\Discovery\\Ocean\\dev\\100-burger && npm run dev"],
       "port": 5173
     }
   ]
