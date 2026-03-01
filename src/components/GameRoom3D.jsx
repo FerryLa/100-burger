@@ -19,8 +19,7 @@ const OBJS = [
   { id: 'farm_lettuce', x: 75,  y: 255, label: '상추밭'   },
   { id: 'fridge',       x: 318, y: 95,  label: '냉장고'   },
   { id: 'sink',         x: 408, y: 95,  label: '씽크대'   },
-  { id: 'kitchen',      x: 498, y: 95,  label: '주방'     },
-  { id: 'stove',        x: 498, y: 200, label: '화로'     },
+  { id: 'kitchen',      x: 498, y: 95,  label: '조리대'   },
   { id: 'order',        x: 550, y: 378, label: '발주대'   },
 ]
 const WALLS2D = OBJS.map(o => ({ x: o.x - 35, y: o.y - 35, w: 70, h: 70 }))
@@ -51,12 +50,12 @@ const THEMES = {
     ob: {
       farm_tomato: 0x86efac, farm_lettuce: 0xa7f3d0,
       fridge: 0xbae6fd, sink: 0xe0f2fe,
-      kitchen: 0xfed7aa, stove: 0xfca5a5, order: 0xd8b4fe,
+      kitchen: 0xfed7aa, order: 0xd8b4fe,
     },
     obDark: {
       farm_tomato: 0x4ade80, farm_lettuce: 0x34d399,
       fridge: 0x7dd3fc, sink: 0x86efac,
-      kitchen: 0xfcd34d, stove: 0xf87171, order: 0xa78bfa,
+      kitchen: 0xfcd34d, order: 0xa78bfa,
     },
   },
   hanok: {
@@ -72,12 +71,12 @@ const THEMES = {
     ob: {
       farm_tomato: 0x86efac, farm_lettuce: 0xa7f3d0,
       fridge: 0xbae6fd, sink: 0xe0f2fe,
-      kitchen: 0xfed7aa, stove: 0xfca5a5, order: 0xd8b4fe,
+      kitchen: 0xfed7aa, order: 0xd8b4fe,
     },
     obDark: {
       farm_tomato: 0x4ade80, farm_lettuce: 0x34d399,
       fridge: 0x7dd3fc, sink: 0x86efac,
-      kitchen: 0xfcd34d, stove: 0xf87171, order: 0xa78bfa,
+      kitchen: 0xfcd34d, order: 0xa78bfa,
     },
   },
 }
@@ -451,32 +450,67 @@ function buildObject3D(scene, t, obj) {
     const top = mkMesh(box(w, 0.05, d), lm(0xffffff, { transparent: true, opacity: 0.4 })); top.position.y = h + 0.025; group.add(top)
 
   } else if (obj.id === 'sink') {
-    w = 0.85; h = 0.9; d = 0.7
+    // 씽크대: 야채 세척 공간
+    w = 0.88; h = 0.88; d = 0.72
     const body = mkMesh(box(w, h, d), lm(baseColor)); body.position.y = h / 2; group.add(body)
-    const bowl = mkMesh(box(0.55, 0.15, 0.45), lm(0xd0e8f0)); bowl.position.y = h + 0.01; group.add(bowl)
-    const tap = mkMesh(cyl(0.03, 0.03, 0.3), lm(0xc0c8d0)); tap.position.y = h + 0.27; group.add(tap)
-    const head = mkMesh(box(0.2, 0.04, 0.04), lm(0xc0c8d0)); head.position.set(0, h + 0.42, 0.08); group.add(head)
+    // 스테인리스 서라운드
+    const surround = mkMesh(box(w + 0.04, 0.06, d + 0.04), lm(0xcfd8dc)); surround.position.y = h + 0.03; group.add(surround)
+    // 깊은 세면대
+    const bW = 0.58, bD = 0.48, bH = 0.20
+    const basin = mkMesh(box(bW, bH, bD), lm(0xb0c4cc)); basin.position.set(0, h + bH / 2 + 0.025, 0); group.add(basin)
+    const basinIn = mkMesh(box(bW - 0.07, bH - 0.05, bD - 0.07), lm(0x6e9aa8)); basinIn.position.set(0, h + (bH - 0.05) / 2 + 0.05, 0); group.add(basinIn)
+    // 물 (파란 반투명)
+    const water = mkMesh(box(bW - 0.09, 0.045, bD - 0.09), lm(0x38bdf8, { transparent: true, opacity: 0.52 }))
+    water.position.set(0, h + 0.075, 0); group.add(water)
+    // 씽크 속 야채들
+    const veg1 = mkMesh(sph(0.072, 8), lm(0x4ade80)); veg1.scale.set(1.25, 0.55, 1.1); veg1.position.set(-0.10, h + 0.13, -0.04); group.add(veg1)
+    const veg2 = mkMesh(sph(0.060, 8), lm(0x22c55e)); veg2.scale.set(0.85, 0.65, 1.0); veg2.position.set(0.10, h + 0.12, 0.08); group.add(veg2)
+    const sinkTom = mkMesh(sph(0.060, 10), lm(0xef4444)); sinkTom.position.set(0.02, h + 0.13, -0.11); group.add(sinkTom)
+    // 아치형 수전 — post(수직) + topBar(수평, z방향) + spout(하향)
+    const post = mkMesh(cyl(0.025, 0.025, 0.36), lm(0xcfd8dc))
+    post.position.set(0, h + bH + 0.21, -0.29); group.add(post)
+    const topBar = mkMesh(cyl(0.022, 0.022, 0.44), lm(0xcfd8dc))
+    topBar.rotation.x = Math.PI / 2; topBar.position.set(0, h + bH + 0.39, -0.07); group.add(topBar)
+    const spout = mkMesh(cyl(0.024, 0.016, 0.13), lm(0xcfd8dc))
+    spout.position.set(0, h + bH + 0.32, 0.15); group.add(spout)
+    const knob = mkMesh(cyl(0.032, 0.032, 0.055, 8), lm(0x90a4ae))
+    knob.rotation.z = Math.PI / 2; knob.position.set(0.10, h + bH + 0.39, -0.21); group.add(knob)
+    // 물방울
+    for (let i = 0; i < 3; i++) {
+      const drop = mkMesh(sph(0.012, 6), lm(0x7dd3fc, { transparent: true, opacity: 0.72 }))
+      drop.position.set(0.015 * (i - 1), h + bH + 0.25 - i * 0.055, 0.15); group.add(drop)
+    }
 
   } else if (obj.id === 'kitchen') {
-    w = 1.0; h = 0.85; d = 0.8
+    // 조리대: 버거 준비 공간
+    w = 1.05; h = 0.85; d = 0.82
     const body = mkMesh(box(w, h, d), lm(baseColor)); body.position.y = h / 2; group.add(body)
-    const top = mkMesh(box(w, 0.06, d), lm(0x2d2d2d)); top.position.y = h + 0.03; group.add(top)
-    ;[[-0.22, -0.2], [0.22, -0.2], [-0.22, 0.2], [0.22, 0.2]].forEach(([bx, bz]) => {
-      const burner = mkMesh(cyl(0.12, 0.12, 0.04, 16), lm(0x111111)); burner.position.set(bx, h + 0.07, bz); group.add(burner)
-    })
-    const pot = mkMesh(cyl(0.14, 0.16, 0.2), lm(0x888888)); pot.position.set(-0.22, h + 0.18, -0.2); group.add(pot)
-    const lid = mkMesh(cyl(0.16, 0.18, 0.06, 16), lm(0xa0a0a0)); lid.position.set(-0.22, h + 0.29, -0.2); group.add(lid)
-
-  } else if (obj.id === 'stove') {
-    w = 0.85; h = 0.75; d = 0.7
-    const body = mkMesh(box(w, h, d), lm(baseColor)); body.position.y = h / 2; group.add(body)
-    const top = mkMesh(box(w, 0.05, d), lm(0x2d1a0a)); top.position.y = h + 0.025; group.add(top)
-    ;[0.15, -0.15].forEach(bx => {
-      const flame1 = mkMesh(cyl(0.05, 0.09, 0.22, 8), lm(0xff6600, { transparent: true, opacity: 0.9 }))
-      flame1.position.set(bx, h + 0.14, 0); group.add(flame1)
-      const flame2 = mkMesh(cyl(0.03, 0.06, 0.16, 8), lm(0xffcc00, { transparent: true, opacity: 0.9 }))
-      flame2.position.set(bx, h + 0.18, 0); group.add(flame2)
-    })
+    // 대리석 상판
+    const top = mkMesh(box(w + 0.06, 0.08, d + 0.06), lm(0xf8f8f5)); top.position.y = h + 0.04; group.add(top)
+    const edge = mkMesh(box(w + 0.06, 0.02, 0.02), lm(darkColor)); edge.position.set(0, h + 0.046, (d + 0.06) / 2); group.add(edge)
+    // 나무 도마
+    const board = mkMesh(box(0.50, 0.025, 0.36), lm(0xb5854a)); board.position.set(-0.08, h + 0.093, 0.06); group.add(board)
+    // 미니 버거 레이어 (아래빵 → 패티 → 상추 → 토마토 → 위빵)
+    const bunB = mkMesh(cyl(0.13, 0.15, 0.05, 14), lm(0xf59e0b)); bunB.position.set(-0.08, h + 0.131, 0.06); group.add(bunB)
+    const patty = mkMesh(cyl(0.12, 0.13, 0.04, 14), lm(0x7c3a15)); patty.position.set(-0.08, h + 0.171, 0.06); group.add(patty)
+    const lets = mkMesh(cyl(0.14, 0.14, 0.025, 12), lm(0x4ade80)); lets.position.set(-0.08, h + 0.211, 0.06); group.add(lets)
+    const tomS = mkMesh(cyl(0.11, 0.11, 0.022, 12), lm(0xef4444)); tomS.position.set(-0.08, h + 0.235, 0.06); group.add(tomS)
+    const bunT = mkMesh(sph(0.135, 12), lm(0xf59e0b)); bunT.scale.set(1.05, 0.62, 1.05); bunT.position.set(-0.08, h + 0.287, 0.06); group.add(bunT)
+    // 참깨
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2
+      const seed = mkMesh(sph(0.011, 5), lm(0xfef3c7))
+      seed.position.set(-0.08 + Math.cos(ang) * 0.062, h + 0.325, 0.06 + Math.sin(ang) * 0.048); group.add(seed)
+    }
+    // 케첩 병
+    const kBody = mkMesh(cyl(0.038, 0.043, 0.19), lm(0xdc2626)); kBody.position.set(0.30, h + 0.165, -0.08); group.add(kBody)
+    const kCap = mkMesh(cyl(0.018, 0.028, 0.055), lm(0xfbbf24)); kCap.position.set(0.30, h + 0.278, -0.08); group.add(kCap)
+    // 머스타드 병
+    const mBody = mkMesh(cyl(0.035, 0.040, 0.17), lm(0xfbbf24)); mBody.position.set(0.30, h + 0.155, 0.10); group.add(mBody)
+    const mCap = mkMesh(cyl(0.017, 0.026, 0.050), lm(0xdc2626)); mCap.position.set(0.30, h + 0.255, 0.10); group.add(mCap)
+    // 뒤집개
+    const spatH = mkMesh(cyl(0.017, 0.017, 0.30), lm(0x7c5c32)); spatH.rotation.x = Math.PI / 2; spatH.position.set(-0.34, h + 0.10, 0.01); group.add(spatH)
+    const spatB = mkMesh(box(0.155, 0.012, 0.11), lm(0xd1d5db)); spatB.position.set(-0.34, h + 0.10, -0.20); group.add(spatB)
 
   } else if (obj.id === 'order') {
     w = 1.0; h = 0.9; d = 0.85

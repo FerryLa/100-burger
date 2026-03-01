@@ -362,17 +362,40 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
   if (role === 'parent') {
     return (
       <div className="flex flex-col items-center gap-4">
-        <h2 className="text-2xl font-black text-orange-700">🍳 주방</h2>
+        <div className="text-center">
+          <h2 className="text-2xl font-black text-amber-800">🍔 버거 조리대</h2>
+          <p className="text-xs text-amber-500 font-bold tracking-wide">Burger Prep Station</p>
+        </div>
         {phase === 'done'
-          ? <div className="text-center"><p className="text-5xl">🍔</p><p className="text-xl font-black text-yellow-800 mt-2">완성! 오늘 {gameState?.burgerCount || 0}개</p></div>
+          ? (
+            <div className="w-full bg-gradient-to-br from-yellow-50 to-amber-50 rounded-2xl p-5 text-center border-2 border-amber-200">
+              <p className="text-5xl mb-1">🍔</p>
+              <p className="text-xl font-black text-amber-800">오늘의 버거 완성!</p>
+              <p className="text-sm text-amber-600 mt-1">오늘 {gameState?.burgerCount || 0}개 달성 🎉</p>
+            </div>
+          )
           : phase === 'cooking'
             ? (
-              <div className="text-center">
-                <p className="font-bold text-orange-700">🍳 아이가 [{STAGES[stageIndex]?.emoji} {STAGES[stageIndex]?.label}] 중!</p>
+              <div className="w-full bg-orange-50 rounded-2xl p-4 text-center border-2 border-orange-200">
+                <p className="text-3xl mb-1">{STAGES[stageIndex]?.emoji}</p>
+                <p className="font-black text-orange-700">{STAGES[stageIndex]?.label} 진행 중!</p>
                 <p className="text-sm text-gray-500 mt-1">남은 시간: {timerMin}:{String(timerSec).padStart(2,'0')}</p>
+                <div className="flex gap-1 justify-center mt-2">
+                  {STAGES.map((s, i) => (
+                    <div key={s.id} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm
+                      ${i < stageIndex ? 'bg-green-400 text-white' : i === stageIndex ? 'bg-orange-500 text-white animate-bounce' : 'bg-gray-100 text-gray-400'}`}>
+                      {i < stageIndex ? '✓' : s.emoji}
+                    </div>
+                  ))}
+                </div>
               </div>
             )
-            : <p className="text-orange-500">아이가 아직 요리를 시작하지 않았어요</p>}
+            : (
+              <div className="w-full bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                <p className="text-3xl mb-1">😴</p>
+                <p className="text-gray-500 font-bold">아이가 아직 조리를 시작하지 않았어요</p>
+              </div>
+            )}
         <button onClick={onClose} className="text-gray-400 underline text-sm mt-2">닫기</button>
       </div>
     )
@@ -380,21 +403,25 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <h2 className="text-2xl font-black text-orange-700">🍳 주방</h2>
+      <div className="text-center">
+        <h2 className="text-2xl font-black text-amber-800">🍔 버거 조리대</h2>
+        <p className="text-xs text-amber-500 font-bold tracking-wide">Burger Prep Station</p>
+      </div>
 
       {/* 완성 */}
       {phase === 'done' && (
-        <div className="w-full bg-yellow-100 rounded-2xl p-5 text-center shadow">
-          <p className="text-5xl mb-2">🍔</p>
-          <p className="text-2xl font-black text-yellow-800">오늘의 햄버거 완성!</p>
-          <p className="text-sm text-yellow-700 mt-1">하루 1개 제한 — 내일 또 만들어요 🎉</p>
-          <button onClick={onClose} className="mt-3 text-gray-500 underline text-sm">닫기</button>
+        <div className="w-full rounded-2xl p-5 text-center shadow"
+          style={{ background: 'linear-gradient(135deg, #fef9c3, #fde68a)', border: '2px solid #f59e0b' }}>
+          <p className="text-6xl mb-2" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.18))' }}>🍔</p>
+          <p className="text-2xl font-black text-amber-900">오늘의 버거 완성!</p>
+          <p className="text-sm text-amber-700 mt-1">하루 1개 제한 — 내일 또 도전해요 🎉</p>
+          <button onClick={onClose} className="mt-3 text-amber-600 underline text-sm font-bold">닫기</button>
         </div>
       )}
 
       {/* 시간 초과 */}
       {phase === 'timeout' && (
-        <div className="w-full bg-red-50 rounded-2xl p-5 text-center shadow">
+        <div className="w-full bg-red-50 rounded-2xl p-5 text-center shadow border-2 border-red-200">
           <p className="text-4xl mb-2">⏰</p>
           <p className="text-xl font-black text-red-700">3분이 지났어요!</p>
           <p className="text-sm text-red-500 mt-1">재료는 소비됐어요. 내일 다시 도전!</p>
@@ -409,23 +436,47 @@ export default function Kitchen({ gameState, inventory, onComplete, onClose }) {
           <div className="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-700 text-center font-bold">
             ⏱ 조리 제한: 3분 이내 &nbsp;|&nbsp; 하루 1개만 조리 가능
           </div>
-          <div className="w-full bg-white rounded-2xl p-4 shadow-sm text-sm">
-            <p className="font-bold text-gray-600 mb-2">필요 재료 확인</p>
-            {[['🥬','채소',hasVeggies],['🍞','빵',hasBread],['🥩','패티',hasPatty],
-              ['🥓','베이컨',hasBacon],['🥫','소스',hasSauce]].map(([e, n, ok]) => (
-              <div key={n} className="flex items-center gap-2 py-1">
-                <span className="text-xl">{e}</span>
-                <span className="flex-1 text-gray-700">{n}</span>
-                <span className={ok ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>{ok ? '✅' : '❌ 없음'}</span>
-              </div>
-            ))}
+
+          {/* 재료 카드 그리드 */}
+          <div className="w-full">
+            <p className="text-xs font-black text-gray-500 mb-2 text-center tracking-widest uppercase">재료 준비</p>
+            <div className="grid grid-cols-5 gap-1.5 w-full">
+              {[['🥬','채소',hasVeggies],['🍞','빵',hasBread],['🥩','패티',hasPatty],
+                ['🥓','베이컨',hasBacon],['🥫','소스',hasSauce]].map(([e, n, ok]) => (
+                <div key={n} className={`flex flex-col items-center py-2 px-1 rounded-2xl border-2 text-center transition-all
+                  ${ok
+                    ? 'bg-green-50 border-green-300 shadow-sm'
+                    : 'bg-gray-50 border-dashed border-gray-200 opacity-55'}`}>
+                  <span className="text-2xl leading-none">{e}</span>
+                  <span className="text-xs font-bold text-gray-600 mt-1 leading-tight">{n}</span>
+                  <span className="text-xs mt-0.5">{ok ? '✅' : '❌'}</span>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* 버거 쌓기 미리보기 */}
+          {allReady && (
+            <div className="flex items-end justify-center gap-0.5 py-1">
+              {['🍞','🥩','🥬','🍅','🍞'].map((e, i) => (
+                <span key={i} className="text-xl leading-none" style={{ transform: `translateY(${-i * 3}px)` }}>{e}</span>
+              ))}
+              <span className="text-xs font-black text-green-600 ml-2">준비 완료!</span>
+            </div>
+          )}
+
           {error && <p className="text-red-500 font-bold text-sm text-center">{error}</p>}
           {gameState?.burgerCompletedAt
-            ? <div className="w-full bg-green-50 rounded-2xl p-3 text-center text-green-700 text-sm font-bold">✅ 오늘의 햄버거를 이미 완성했어요!</div>
+            ? <div className="w-full bg-green-50 rounded-2xl p-3 text-center text-green-700 text-sm font-bold border border-green-200">✅ 오늘의 버거를 이미 완성했어요!</div>
             : allReady
-              ? <button onClick={handleStart} className="btn-elder w-full bg-orange-500 text-white">🍔 요리 시작! (3분 제한)</button>
-              : <div className="w-full bg-yellow-50 rounded-2xl p-3 text-center text-yellow-700 text-sm">냉장고를 채우거나 발주대에서 주문하세요 📦</div>}
+              ? (
+                <button onClick={handleStart}
+                  className="btn-elder w-full text-white font-black shadow-lg active:scale-95 transition-transform"
+                  style={{ background: 'linear-gradient(90deg, #f97316, #ea580c)' }}>
+                  🍔 조리 시작! (3분 제한)
+                </button>
+              )
+              : <div className="w-full bg-yellow-50 rounded-2xl p-3 text-center text-yellow-700 text-sm border border-yellow-200">냉장고를 채우거나 발주대에서 주문하세요 📦</div>}
           <button onClick={onClose} className="text-gray-400 underline text-sm">닫기</button>
         </>
       )}

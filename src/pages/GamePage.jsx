@@ -165,7 +165,6 @@ export default function GamePage() {
       fridge:       'fridge',
       sink:         'fridge',
       kitchen:      'kitchen',
-      stove:        'kitchen',
       order:        'order',
     }
     setModal(map[objectId] ?? null)
