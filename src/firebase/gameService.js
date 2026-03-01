@@ -114,7 +114,7 @@ export async function seedFarm(familyId, cropType) {
   }
 
   const now         = Date.now()
-  const isBeanstalk = Math.random() < 0.20   // 20% 확률
+  const isBeanstalk = Math.random() < 0.03   // 3% 확률
   // 콩나물 이벤트 시: 30초 후 꽃 핌 (평소 2시간 대신)
   const floweredAt  = isBeanstalk
     ? new Date(now + 30 * 1000)
@@ -490,13 +490,13 @@ export async function instantCompleteAll(familyId) {
   const now     = Date.now()
   const expires = new Date(now + 3 * 24 * 60 * 60 * 1000)
 
-  // 인벤토리 보충
+  // 인벤토리 보충 (품목당 1개)
   await setDoc(INVENTORY_DOC(familyId), {
-    veggies:           5,
-    bread:             5,
-    patty:             5,
-    bacon:             5,
-    sauce:             5,
+    veggies:           1,
+    bread:             1,
+    patty:             1,
+    bacon:             1,
+    sauce:             1,
     veggieHarvestedAt: Timestamp.fromMillis(now),
     veggieExpiresAt:   Timestamp.fromMillis(expires.getTime()),
   }, { merge: true })
