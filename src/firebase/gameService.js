@@ -485,45 +485,27 @@ export async function instantDeliverOrders(familyId) {
   return { count: snap.size, items: totalItems }
 }
 
-/** 테스트용: 모든 재료 보충 + 양쪽 농장 수확 가능 + 버거 1개 완성 */
+/** 테스트용: 버거 1개 즉시 완성 (completeBurger 전체 흐름 실행) */
 export async function instantCompleteAll(familyId) {
-  const now     = Date.now()
-  const expires = new Date(now + 3 * 24 * 60 * 60 * 1000)
+  const result = await completeBurger(familyId)
+  return result.daily
+}
 
-  // 인벤토리 보충 (품목당 1개)
-  await setDoc(INVENTORY_DOC(familyId), {
-    veggies:           1,
-    bread:             1,
-    patty:             1,
-    bacon:             1,
-    sauce:             1,
-    veggieHarvestedAt: Timestamp.fromMillis(now),
-    veggieExpiresAt:   Timestamp.fromMillis(expires.getTime()),
-  }, { merge: true })
-
-  // 양쪽 농장 수확 가능 상태로
+/** 테스트용: 양쪽 농장을 즉시 꽃 피기 상태로 (물주기 단계로 진입) */
+export async function instantFlowerFarms(familyId) {
+  const now = Date.now()
   for (const type of ['tomato', 'lettuce']) {
     await setDoc(FARM_DOC(familyId, type), {
-      stage:      'ready',
-      date:       today(),
-      seededAt:   Timestamp.fromMillis(now),
-      floweredAt: Timestamp.fromMillis(now),
-      wateredAt:  Timestamp.fromMillis(now),
-      readyAt:    Timestamp.fromMillis(now),
+      stage:       'flowering',
+      date:        today(),
+      seededAt:    Timestamp.fromMillis(now - 2 * 60 * 60 * 1000),
+      floweredAt:  Timestamp.fromMillis(now),
+      wateredAt:   null,
+      readyAt:     null,
       harvestedAt: null,
-    }, { merge: true })
+      beanstalk:   false,
+    })
   }
-
-  // 버거 1개 완성
-  const ref  = doc(db, 'families', familyId, 'gameState', today())
-  const snap = await getDoc(ref)
-  const prev = snap.exists() ? snap.data() : {}
-  const newCount = (prev.burgerCount || 0) + 1
-  await setDoc(ref, {
-    burgerCompletedAt: serverTimestamp(),
-    burgerCount: newCount,
-  }, { merge: true })
-  return newCount
 }
 
 // ─── 위치 동기화 (멀티플레이어 캐릭터 표시) ─────────────────────────────────

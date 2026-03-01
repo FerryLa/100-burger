@@ -11,7 +11,7 @@ import {
   deliverPendingOrders, syncFarmStage, sendMessage,
   syncPosition, watchOtherPosition,
   storeVeggiesInFridge, instantCompleteAll, instantDeliverOrders,
-  watchFamilyMeta, resetGameState,
+  watchFamilyMeta, resetGameState, instantFlowerFarms,
 } from '../firebase/gameService'
 import { useGameStore } from '../store/useGameStore'
 import GameRoom       from '../components/GameRoom3D'
@@ -78,8 +78,10 @@ export default function GamePage() {
   const [testMsg,   setTestMsg]   = useState('')
   const [delivBusy, setDelivBusy] = useState(false)
   const [delivMsg,  setDelivMsg]  = useState('')
-  const [resetBusy, setResetBusy] = useState(false)
-  const [resetMsg,  setResetMsg]  = useState('')
+  const [resetBusy,  setResetBusy]  = useState(false)
+  const [resetMsg,   setResetMsg]   = useState('')
+  const [flowerBusy, setFlowerBusy] = useState(false)
+  const [flowerMsg,  setFlowerMsg]  = useState('')
 
   /* ── 업적 팝업 큐 ── */
   const [achPopup,  setAchPopup]  = useState(null)   // { id, emoji, label } | null
@@ -204,6 +206,20 @@ export default function GamePage() {
       setResetMsg('오류: ' + e.message)
       setTimeout(() => setResetMsg(''), 3000)
     } finally { setResetBusy(false) }
+  }
+
+  /* ── (테스트) 꽃 피기 ── */
+  async function handleInstantFlower() {
+    if (!familyId || flowerBusy) return
+    setFlowerBusy(true); setFlowerMsg('')
+    try {
+      await instantFlowerFarms(familyId)
+      setFlowerMsg('🌸 양쪽 밭 꽃 피었어요!')
+      setTimeout(() => setFlowerMsg(''), 2500)
+    } catch (e) {
+      setFlowerMsg('오류: ' + e.message)
+      setTimeout(() => setFlowerMsg(''), 2500)
+    } finally { setFlowerBusy(false) }
   }
 
   /* ── (테스트) 바로 발주도착 ── */
@@ -539,9 +555,9 @@ export default function GamePage() {
 
       {/* ── (테스트) 버튼 그룹 ── */}
       <div className="fixed bottom-20 right-3 z-40 flex flex-col items-end gap-2">
-        {(testMsg || delivMsg || resetMsg) && (
+        {(testMsg || delivMsg || resetMsg || flowerMsg) && (
           <div className="bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-xl max-w-[180px] text-right">
-            {resetMsg || testMsg || delivMsg}
+            {resetMsg || flowerMsg || testMsg || delivMsg}
           </div>
         )}
         <button
@@ -552,6 +568,15 @@ export default function GamePage() {
                      transition-all disabled:opacity-40 border-2 border-red-400"
         >
           {resetBusy ? '초기화 중...' : '(테스트) 초기화 🔄'}
+        </button>
+        <button
+          onClick={handleInstantFlower}
+          disabled={flowerBusy}
+          className="bg-green-600 hover:bg-green-700 active:scale-95 text-white text-xs
+                     font-black px-3 py-2 rounded-xl shadow-lg opacity-80 hover:opacity-100
+                     transition-all disabled:opacity-40 border-2 border-green-400"
+        >
+          {flowerBusy ? '처리 중...' : '(테스트) 꽃 피기 🌸'}
         </button>
         <button
           onClick={handleInstantDeliver}
