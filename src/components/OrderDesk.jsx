@@ -33,7 +33,7 @@ export default function OrderDesk({ pendingOrders, onClose }) {
   const [done,  setDone]   = useState(false)
 
   function adj(key, delta) {
-    setCart(c => ({ ...c, [key]: Math.max(0, Math.min(99, (c[key] || 0) + delta)) }))
+    setCart(c => ({ ...c, [key]: Math.max(0, Math.min(1, (c[key] || 0) + delta)) }))
   }
 
   const hasItems = Object.values(cart).some(v => v > 0)
@@ -105,7 +105,7 @@ export default function OrderDesk({ pendingOrders, onClose }) {
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-2xl font-black text-amber-800 text-center">📦 발주대</h2>
-      <p className="text-sm text-gray-400 text-center">마우스로 수량을 선택하세요. 24시간 후 배송.</p>
+      <p className="text-sm text-gray-400 text-center">품목당 1개씩 주문 가능해요. 24시간 후 배송.</p>
 
       {/* 주문 목록 */}
       <div className="flex flex-col gap-2">

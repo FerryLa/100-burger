@@ -101,6 +101,18 @@ export async function getFamilyByUid(uid) {
 
 /** 새싹 심기 (20% 확률로 잭과 콩나물 이벤트 발생) */
 export async function seedFarm(familyId, cropType) {
+  // 하루 1사이클 제한: 오늘 이미 수확(또는 진행 중)이면 재심기 불가
+  const snap = await getDoc(FARM_DOC(familyId, cropType))
+  if (snap.exists()) {
+    const farm = snap.data()
+    if (farm.date === today() && farm.stage !== 'harvested') {
+      throw new Error('이미 오늘 이 밭에서 작업 중이에요.')
+    }
+    if (farm.date === today() && farm.stage === 'harvested') {
+      throw new Error('오늘은 이미 수확을 마쳤어요. 내일 다시 심어요!')
+    }
+  }
+
   const now         = Date.now()
   const isBeanstalk = Math.random() < 0.20   // 20% 확률
   // 콩나물 이벤트 시: 30초 후 꽃 핌 (평소 2시간 대신)
@@ -205,7 +217,7 @@ export async function harvestFarmToHands(familyId, cropType) {
   // 주간 챌린지 수확 카운터
   await incrementWeeklyProgress(familyId, 'harvestCount').catch(() => {})
 
-  return 3 // 수확 수량
+  return 1 // 수확 수량 (하나씩)
 }
 
 /** 수확한 채소를 냉장고에 보관 */

@@ -55,6 +55,10 @@ export default function Farm({ farm, cropType, onHarvest, onClose }) {
   const stage = farm?.stage ?? null
   const info  = STAGE_INFO[stage] ?? STAGE_INFO[null]
 
+  // 하루 1사이클 제한: 오늘 이미 수확 완료면 심기 불가
+  const todayStr       = new Date().toISOString().split('T')[0]
+  const harvestedToday = stage === 'harvested' && farm?.date === todayStr
+
   const flowerMs = farm?.floweredAt?.toMillis?.() ?? (farm?.floweredAt?.seconds ?? 0) * 1000
   const readyMs  = farm?.readyAt?.toMillis?.()    ?? (farm?.readyAt?.seconds    ?? 0) * 1000
   const toFlower = useCountdown(stage === 'seed' || stage === 'growing' ? flowerMs : 0)
@@ -130,11 +134,17 @@ export default function Farm({ farm, cropType, onHarvest, onClose }) {
       {error && <p className="text-red-500 font-bold text-center">{error}</p>}
 
       {/* 새싹 심기 */}
-      {(stage === null || stage === 'harvested') && (
+      {(stage === null || stage === 'harvested') && !harvestedToday && (
         <button onClick={handleSeed} disabled={busy}
           className="btn-elder bg-green-500 text-white w-full">
           {busy ? '심는 중...' : `${meta.seedEmoji} 새싹 심기`}
         </button>
+      )}
+      {harvestedToday && (
+        <div className="w-full bg-green-50 border-2 border-green-200 rounded-2xl p-4 text-center">
+          <p className="text-green-700 font-bold">🌙 오늘 수확 완료!</p>
+          <p className="text-green-500 text-sm mt-1">내일 다시 심을 수 있어요.</p>
+        </div>
       )}
 
       {/* 물주기 */}
