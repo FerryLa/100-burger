@@ -50,6 +50,43 @@ export default function OrderDesk({ pendingOrders, onClose }) {
     }
   }
 
+  // 이미 대기 중인 발주가 있으면 새 발주 불가
+  if (pendingOrders?.length >= 1 && !done) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h2 className="text-2xl font-black text-amber-800 text-center">📦 발주대</h2>
+
+        {/* 대기 중인 주문 */}
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl px-4 py-3">
+          <p className="text-sm font-bold text-yellow-700 mb-2">⏳ 대기 중인 발주가 있어요</p>
+          {pendingOrders.map(order => (
+            <div key={order.id} className="flex justify-between items-center py-1">
+              <span className="text-gray-600 text-sm">
+                {Object.entries(order.items)
+                  .filter(([, q]) => q > 0)
+                  .map(([k, q]) => {
+                    const item = CATALOG.find(c => c.key === k)
+                    return `${item?.emoji}×${q}`
+                  })
+                  .join(' ')}
+              </span>
+              <span className="text-amber-600 font-bold text-xs">
+                {formatDelivery(order.deliveryAt)} 도착
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-sm text-gray-400 text-center">
+          배송이 완료되면 새 발주가 가능해요.
+        </p>
+        <button onClick={onClose} className="text-gray-400 underline text-sm text-center">
+          닫기
+        </button>
+      </div>
+    )
+  }
+
   if (done) {
     return (
       <div className="flex flex-col items-center gap-4 py-4">

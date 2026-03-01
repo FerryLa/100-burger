@@ -407,6 +407,49 @@ export async function completeBurger(familyId) {
   }
 }
 
+/** 테스트용: 게임 상태 전체 초기화 */
+export async function resetGameState(familyId) {
+  // 1) 인벤토리 초기화
+  await setDoc(INVENTORY_DOC(familyId), {
+    veggies: 0, bread: 0, patty: 0, bacon: 0, sauce: 0,
+    veggieHarvestedAt: null, veggieExpiresAt: null,
+  })
+
+  // 2) 농장 초기화 (harvested 상태 = 빈 밭)
+  for (const type of ['tomato', 'lettuce']) {
+    await setDoc(FARM_DOC(familyId, type), {
+      stage: 'harvested', date: today(),
+      seededAt: null, floweredAt: null, wateredAt: null,
+      readyAt: null, harvestedAt: Timestamp.fromMillis(Date.now()),
+      beanstalk: false,
+    })
+  }
+
+  // 3) 오늘 gameState 초기화
+  const gsRef = doc(db, 'families', familyId, 'gameState', today())
+  await setDoc(gsRef, {
+    burgerCount: 0, burgerStartedAt: null, burgerCompletedAt: null,
+  })
+
+  // 4) 대기 중인 발주 취소 (모두 delivered 처리)
+  const ordersQ = query(
+    collection(db, 'families', familyId, 'orders'),
+    where('delivered', '==', false),
+  )
+  const ordersSnap = await getDocs(ordersQ)
+  for (const d of ordersSnap.docs) {
+    await updateDoc(d.ref, { delivered: true })
+  }
+
+  // 5) 가족 누적 통계 초기화
+  const famRef = doc(db, 'families', familyId)
+  await updateDoc(famRef, {
+    totalBurgers: 0, streak: 0, maxStreak: 0,
+    beanstalkCount: 0, achievements: [],
+    lastBurgerDate: '', couponsEarned: 0,
+  })
+}
+
 /** 테스트용: 대기 중인 모든 발주를 즉시 배송 처리 */
 export async function instantDeliverOrders(familyId) {
   const q    = query(collection(db, 'families', familyId, 'orders'), where('delivered', '==', false))

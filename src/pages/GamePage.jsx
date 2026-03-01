@@ -11,7 +11,7 @@ import {
   deliverPendingOrders, syncFarmStage, sendMessage,
   syncPosition, watchOtherPosition,
   storeVeggiesInFridge, instantCompleteAll, instantDeliverOrders,
-  watchFamilyMeta,
+  watchFamilyMeta, resetGameState,
 } from '../firebase/gameService'
 import { useGameStore } from '../store/useGameStore'
 import GameRoom       from '../components/GameRoom3D'
@@ -78,6 +78,8 @@ export default function GamePage() {
   const [testMsg,   setTestMsg]   = useState('')
   const [delivBusy, setDelivBusy] = useState(false)
   const [delivMsg,  setDelivMsg]  = useState('')
+  const [resetBusy, setResetBusy] = useState(false)
+  const [resetMsg,  setResetMsg]  = useState('')
 
   /* ── 업적 팝업 큐 ── */
   const [achPopup,  setAchPopup]  = useState(null)   // { id, emoji, label } | null
@@ -187,6 +189,21 @@ export default function GamePage() {
     const newCoupon = typeof result === 'object' ? result.newCoupon : (total % 100 === 0)
     if (newCoupon && total > 0) setCelebrate(total)
     if (result?.newAchievements?.length) enqueueAchievements(result.newAchievements)
+  }
+
+  /* ── (테스트) 전체 초기화 ── */
+  async function handleReset() {
+    if (!familyId || resetBusy) return
+    if (!window.confirm('⚠️ 모든 게임 데이터를 초기화할까요?\n(인벤토리·농장·발주·버거 카운터 전부 0으로)')) return
+    setResetBusy(true); setResetMsg('')
+    try {
+      await resetGameState(familyId)
+      setResetMsg('✅ 초기화 완료!')
+      setTimeout(() => setResetMsg(''), 2500)
+    } catch (e) {
+      setResetMsg('오류: ' + e.message)
+      setTimeout(() => setResetMsg(''), 3000)
+    } finally { setResetBusy(false) }
   }
 
   /* ── (테스트) 바로 발주도착 ── */
@@ -522,11 +539,20 @@ export default function GamePage() {
 
       {/* ── (테스트) 버튼 그룹 ── */}
       <div className="fixed bottom-20 right-3 z-40 flex flex-col items-end gap-2">
-        {(testMsg || delivMsg) && (
+        {(testMsg || delivMsg || resetMsg) && (
           <div className="bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-xl max-w-[180px] text-right">
-            {testMsg || delivMsg}
+            {resetMsg || testMsg || delivMsg}
           </div>
         )}
+        <button
+          onClick={handleReset}
+          disabled={resetBusy}
+          className="bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs
+                     font-black px-3 py-2 rounded-xl shadow-lg opacity-80 hover:opacity-100
+                     transition-all disabled:opacity-40 border-2 border-red-400"
+        >
+          {resetBusy ? '초기화 중...' : '(테스트) 초기화 🔄'}
+        </button>
         <button
           onClick={handleInstantDeliver}
           disabled={delivBusy}
