@@ -427,12 +427,12 @@ export async function resetGameState(familyId) {
     veggieHarvestedAt: null, veggieExpiresAt: null,
   })
 
-  // 2) 농장 초기화 (harvested 상태 = 빈 밭)
+  // 2) 농장 초기화 (빈 밭 — date를 비워 '오늘 수확 완료' 잠금 해제)
   for (const type of ['tomato', 'lettuce']) {
     await setDoc(FARM_DOC(familyId, type), {
-      stage: 'harvested', date: today(),
+      stage: 'harvested', date: '',
       seededAt: null, floweredAt: null, wateredAt: null,
-      readyAt: null, harvestedAt: Timestamp.fromMillis(Date.now()),
+      readyAt: null, harvestedAt: null,
       beanstalk: false,
     })
   }
