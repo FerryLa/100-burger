@@ -34,6 +34,7 @@ import {
   where, getDocs, Timestamp,
 } from 'firebase/firestore'
 import { db } from './config'
+import { checkNewAchievements } from '../data/achievements'
 
 const today = () => new Date().toISOString().split('T')[0]
 const FARM_DOC      = (fid, type) => doc(db, 'families', fid, 'farm', type)
@@ -69,6 +70,22 @@ export function watchFamily(familyId, callback) {
   })
 }
 
+/** 스트릭·업적·totalBurgers 실시간 구독 */
+export function watchFamilyMeta(familyId, callback) {
+  const ref = doc(db, 'families', familyId)
+  return onSnapshot(ref, (snap) => {
+    if (!snap.exists()) return
+    const d = snap.data()
+    callback({
+      totalBurgers:   d.totalBurgers   || 0,
+      streak:         d.streak         || 0,
+      maxStreak:      d.maxStreak      || 0,
+      achievements:   d.achievements   || [],
+      beanstalkCount: d.beanstalkCount || 0,
+    })
+  })
+}
+
 export async function getFamilyByUid(uid) {
   let q    = query(collection(db, 'families'), where('parentUid', '==', uid))
   let snap = await getDocs(q)
@@ -100,7 +117,30 @@ export async function seedFarm(familyId, cropType) {
     harvestedAt: null,
     beanstalk:  isBeanstalk,   // 잭과 콩나물 이벤트 플래그
   })
-  return isBeanstalk
+
+  // 잭과 콩나물 카운터 증가 (업적 추적)
+  if (isBeanstalk) {
+    const famRef  = doc(db, 'families', familyId)
+    const famSnap = await getDoc(famRef)
+    const famData = famSnap.exists() ? famSnap.data() : {}
+    const beanstalkCount = (famData.beanstalkCount || 0) + 1
+
+    // 잭과 콩나물 업적 즉시 체크
+    const existing        = famData.achievements || []
+    const newAchievements = checkNewAchievements(existing, {
+      total:         famData.totalBurgers  || 0,
+      streak:        famData.streak        || 0,
+      maxStreak:     famData.maxStreak     || 0,
+      beanstalkCount,
+    })
+    await updateDoc(famRef, {
+      beanstalkCount,
+      achievements: [...existing, ...newAchievements],
+    })
+    return { isBeanstalk: true, newAchievements }
+  }
+
+  return { isBeanstalk: false, newAchievements: [] }
 }
 
 /** 농장 실시간 구독 */
@@ -310,9 +350,48 @@ export async function completeBurger(familyId) {
   const prevTotal  = famData.totalBurgers || 0
   const newTotal   = prevTotal + 1
   const newCoupons = Math.floor(newTotal / 100)
-  await updateDoc(famRef, { totalBurgers: newTotal, couponsEarned: newCoupons })
 
-  return { daily: newDaily, total: newTotal, newCoupon: newCoupons > Math.floor(prevTotal / 100) }
+  // ── 스트릭 계산 ──────────────────────────────────────────────
+  const todayStr = today()
+  const yd = new Date(); yd.setDate(yd.getDate() - 1)
+  const yesterdayStr = yd.toISOString().split('T')[0]
+
+  const lastDate = famData.lastBurgerDate || ''
+  let streak    = famData.streak    || 0
+  let maxStreak = famData.maxStreak || 0
+
+  if (lastDate === todayStr) {
+    // 오늘 이미 처리됨 — 스트릭 유지
+  } else if (lastDate === yesterdayStr) {
+    streak += 1   // 연속!
+  } else {
+    streak = 1    // 첫 시작 또는 끊김
+  }
+  if (streak > maxStreak) maxStreak = streak
+
+  // ── 업적 체크 ────────────────────────────────────────────────
+  const existing       = famData.achievements  || []
+  const beanstalkCount = famData.beanstalkCount || 0
+  const newAchievements = checkNewAchievements(existing, {
+    total: newTotal, streak, maxStreak, beanstalkCount,
+  })
+
+  await updateDoc(famRef, {
+    totalBurgers:   newTotal,
+    couponsEarned:  newCoupons,
+    lastBurgerDate: todayStr,
+    streak,
+    maxStreak,
+    achievements:   [...existing, ...newAchievements],
+  })
+
+  return {
+    daily:           newDaily,
+    total:           newTotal,
+    newCoupon:       newCoupons > Math.floor(prevTotal / 100),
+    streak,
+    newAchievements,
+  }
 }
 
 /** 테스트용: 대기 중인 모든 발주를 즉시 배송 처리 */

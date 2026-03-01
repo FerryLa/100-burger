@@ -5,20 +5,23 @@
  * - carrying: 수확물 손에 들고 냉장고까지 직접 운반
  * - 양쪽 캐릭터 동시 표시 (위치 Firebase 동기화)
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   watchGameState, watchFarm, watchInventory, watchOrders,
   deliverPendingOrders, syncFarmStage, sendMessage,
   syncPosition, watchOtherPosition,
   storeVeggiesInFridge, instantCompleteAll, instantDeliverOrders,
+  watchFamilyMeta,
 } from '../firebase/gameService'
 import { useGameStore } from '../store/useGameStore'
-import GameRoom    from '../components/GameRoom3D'
-import Farm        from '../components/Farm'
-import Refrigerator from '../components/Refrigerator'
-import OrderDesk   from '../components/OrderDesk'
-import Kitchen     from '../components/Kitchen'
-import MessagePanel from '../components/MessagePanel'
+import GameRoom       from '../components/GameRoom3D'
+import Farm           from '../components/Farm'
+import Refrigerator   from '../components/Refrigerator'
+import OrderDesk      from '../components/OrderDesk'
+import Kitchen        from '../components/Kitchen'
+import MessagePanel   from '../components/MessagePanel'
+import AchievementsPanel from '../components/AchievementsPanel'
+import { ACHIEVEMENTS } from '../data/achievements'
 
 /* ── 테마 설정 ──────────────────────────────────────────────── */
 const THEME_CONFIG = {
@@ -45,7 +48,7 @@ const THEME_CONFIG = {
 }
 
 export default function GamePage() {
-  const { familyId, role, gameState, setGameState, user } = useGameStore(s => s)
+  const { familyId, role, gameState, setGameState, setFamilyMeta, user } = useGameStore(s => s)
 
   const [farmTomato,    setFarmTomato]    = useState(null)
   const [farmLettuce,   setFarmLettuce]   = useState(null)
@@ -62,9 +65,31 @@ export default function GamePage() {
   const [delivBusy, setDelivBusy] = useState(false)
   const [delivMsg,  setDelivMsg]  = useState('')
 
+  /* ── 업적 팝업 큐 ── */
+  const [achPopup,  setAchPopup]  = useState(null)   // { id, emoji, label } | null
+  const achQueueRef = useRef([])
+
   /* ── 테마 상태 ── */
   const [theme, setTheme] = useState('modern')
   const tc = THEME_CONFIG[theme]
+
+  /* ── 업적 팝업 순차 표시 ── */
+  function enqueueAchievements(ids) {
+    if (!ids || ids.length === 0) return
+    const defs = ids.map(id => ACHIEVEMENTS.find(a => a.id === id)).filter(Boolean)
+    achQueueRef.current.push(...defs)
+    if (!achPopup) showNextAch()
+  }
+
+  function showNextAch() {
+    if (achQueueRef.current.length === 0) { setAchPopup(null); return }
+    const next = achQueueRef.current.shift()
+    setAchPopup(next)
+    setTimeout(() => {
+      setAchPopup(null)
+      setTimeout(showNextAch, 300)
+    }, 3500)
+  }
 
   /* ── 실시간 구독 ─────────────────────────────────────────── */
   useEffect(() => {
@@ -75,7 +100,8 @@ export default function GamePage() {
     const u4 = watchInventory(familyId, setInventory)
     const u5 = watchOrders(familyId, setPendingOrders)
     const u6 = watchOtherPosition(familyId, role, setOtherPlayer)
-    return () => { u1(); u2(); u3(); u4(); u5(); u6() }
+    const u7 = watchFamilyMeta(familyId, setFamilyMeta)
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7() }
   }, [familyId, role])
 
   useEffect(() => {
@@ -127,12 +153,13 @@ export default function GamePage() {
     setCarrying({ type: cropType, emoji: m.emoji, label: m.label, qty })
   }, [])
 
-  /* ── 버거 완성 (Kitchen이 { daily, total, newCoupon } 반환) ── */
+  /* ── 버거 완성 (Kitchen이 { daily, total, newCoupon, streak, newAchievements } 반환) ── */
   function handleBurgerComplete(result) {
     if (!result) return
     const total = typeof result === 'object' ? result.total : result
     const newCoupon = typeof result === 'object' ? result.newCoupon : (total % 100 === 0)
     if (newCoupon && total > 0) setCelebrate(total)
+    if (result?.newAchievements?.length) enqueueAchievements(result.newAchievements)
   }
 
   /* ── (테스트) 바로 발주도착 ── */
@@ -174,6 +201,7 @@ export default function GamePage() {
 
   const burgerCount  = gameState?.burgerCount  || 0   // 오늘 완성 수
   const totalBurgers = useGameStore(s => s.totalBurgers)  // 누적 (쿠폰 기준)
+  const streak       = useGameStore(s => s.streak)
   const roleLabel    = role === 'parent'
     ? (theme === 'hanok' ? '🧑‍🍳 엄마' : '👩 엄마')
     : (theme === 'hanok' ? '🧒 아들'  : '👦 아들')
@@ -216,8 +244,33 @@ export default function GamePage() {
           )}
         </div>
 
-        {/* 오른쪽: 테마 토글 */}
+        {/* 오른쪽: 스트릭 + 테마 토글 + 업적 */}
         <div className="flex items-center gap-1">
+          {/* 스트릭 뱃지 */}
+          {streak >= 2 && (
+            <div
+              className="flex items-center gap-0.5 px-2 py-1 rounded-xl text-xs font-black"
+              style={{ background: 'rgba(255,255,255,0.2)', color: tc.headerText }}
+              title={`${streak}일 연속 달성 중!`}
+            >
+              🔥 {streak}
+            </div>
+          )}
+
+          {/* 업적 버튼 */}
+          <button
+            onClick={() => setModal('achievements')}
+            className="text-xs font-black px-2.5 py-1 rounded-xl transition-all duration-200"
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              color: tc.headerText,
+              border: '2px solid transparent',
+            }}
+            title="업적 컬렉션"
+          >
+            🏆
+          </button>
+
           {(['modern', 'hanok']).map(t => (
             <button
               key={t}
@@ -327,6 +380,33 @@ export default function GamePage() {
                 onClose={() => setModal(null)}
               />
             )}
+            {modal === 'achievements' && (
+              <AchievementsPanel theme={theme} onClose={() => setModal(null)} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── 업적 달성 팝업 ── */}
+      {achPopup && (
+        <div
+          className="fixed top-20 inset-x-0 flex justify-center z-[60] px-4 pointer-events-none"
+          style={{ animation: 'slideDown 0.4s ease-out' }}
+        >
+          <div
+            className="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl max-w-xs w-full"
+            style={{
+              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+              border: '2px solid #f59e0b',
+              animation: 'bounceIn 0.5s ease-out',
+            }}
+          >
+            <span className="text-4xl">{achPopup.emoji}</span>
+            <div>
+              <p className="text-xs font-bold text-amber-600">🏆 업적 달성!</p>
+              <p className="text-base font-black text-amber-900">{achPopup.label}</p>
+              <p className="text-xs text-amber-700">{achPopup.desc}</p>
+            </div>
           </div>
         </div>
       )}

@@ -102,3 +102,25 @@ body {
 .modal-hanok {
   background: linear-gradient(160deg, #f5e6c0 0%, #ecd8a0 100%);
 }
+
+/* ── 업적 팝업 애니메이션 ── */
+@keyframes slideDown {
+  from { transform: translateY(-60px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes bounceIn {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  80%  { transform: scale(0.97); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ── 스트릭 불꽃 애니메이션 ── */
+@keyframes flicker {
+  0%, 100% { transform: scale(1)    rotate(-2deg); }
+  50%       { transform: scale(1.15) rotate(2deg);  }
+}
+.streak-flame {
+  display: inline-block;
+  animation: flicker 0.9s ease-in-out infinite;
+}
