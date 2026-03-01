@@ -21,7 +21,21 @@ import OrderDesk      from '../components/OrderDesk'
 import Kitchen        from '../components/Kitchen'
 import MessagePanel   from '../components/MessagePanel'
 import AchievementsPanel from '../components/AchievementsPanel'
+import WeeklyChallenge   from '../components/WeeklyChallenge'
 import { ACHIEVEMENTS } from '../data/achievements'
+import { watchWeeklyChallenge, markWeeklyChallengeComplete } from '../firebase/gameService'
+import { getChallengeForWeek, getWeekKey } from '../data/weeklyChallenges'
+
+/* ── 주간 챌린지 진행도 헬퍼 ────────────────────────────────── */
+function getProgress(type, progress) {
+  switch (type) {
+    case 'burger_count':  return progress?.burgerCount    || 0
+    case 'streak':        return progress?.streakMax      || 0
+    case 'beanstalk':     return progress?.beanstalkCount || 0
+    case 'farm_harvest':  return progress?.harvestCount   || 0
+    default:              return 0
+  }
+}
 
 /* ── 테마 설정 ──────────────────────────────────────────────── */
 const THEME_CONFIG = {
@@ -69,6 +83,10 @@ export default function GamePage() {
   const [achPopup,  setAchPopup]  = useState(null)   // { id, emoji, label } | null
   const achQueueRef = useRef([])
 
+  /* ── 주간 챌린지 상태 ── */
+  const [weeklyData,    setWeeklyData]    = useState(null)
+  const [weeklyDonePop, setWeeklyDonePop] = useState(false)
+
   /* ── 테마 상태 ── */
   const [theme, setTheme] = useState('modern')
   const tc = THEME_CONFIG[theme]
@@ -101,7 +119,17 @@ export default function GamePage() {
     const u5 = watchOrders(familyId, setPendingOrders)
     const u6 = watchOtherPosition(familyId, role, setOtherPlayer)
     const u7 = watchFamilyMeta(familyId, setFamilyMeta)
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7() }
+    const u8 = watchWeeklyChallenge(familyId, (data) => {
+      const prev = weeklyData
+      setWeeklyData(data)
+      // 이번 주 챌린지가 방금 완료됐는지 감지
+      const isDone = getProgress(data.challenge.type, data.progress) >= data.challenge.target
+      if (isDone && !data.progress.completed && !prev?.progress?.completed) {
+        setWeeklyDonePop(true)
+        setTimeout(() => setWeeklyDonePop(false), 4000)
+      }
+    })
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8() }
   }, [familyId, role])
 
   useEffect(() => {
@@ -229,18 +257,36 @@ export default function GamePage() {
           </div>
         </div>
 
-        {/* 중앙: 버거 카운터 */}
-        <div
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-black text-sm shadow-inner"
-          style={{ background: 'rgba(255,255,255,0.2)', color: tc.headerText }}
-        >
-          <span className="text-xl">🍔</span>
-          <div className="flex flex-col items-center leading-none">
-            <span>{totalBurgers}개</span>
-            <span className="text-xs opacity-60">/ 100개 쿠폰</span>
+        {/* 중앙: 버거 카운터 + 주간 챌린지 버튼 */}
+        <div className="flex flex-col items-center gap-0.5">
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-black text-sm shadow-inner"
+            style={{ background: 'rgba(255,255,255,0.2)', color: tc.headerText }}
+          >
+            <span className="text-xl">🍔</span>
+            <div className="flex flex-col items-center leading-none">
+              <span>{totalBurgers}개</span>
+              <span className="text-xs opacity-60">/ 100개 쿠폰</span>
+            </div>
+            {burgerCount > 0 && (
+              <span className="text-xs bg-white/20 rounded-full px-1.5 py-0.5">오늘 {burgerCount}</span>
+            )}
           </div>
-          {burgerCount > 0 && (
-            <span className="text-xs bg-white/20 rounded-full px-1.5 py-0.5">오늘 {burgerCount}</span>
+          {/* 주간 챌린지 힌트 */}
+          {weeklyData && !weeklyData.progress?.completed && (
+            <button
+              onClick={() => setModal('weekly')}
+              className="text-xs font-bold px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.25)', color: tc.headerText }}
+            >
+              📅 {getProgress(weeklyData.challenge.type, weeklyData.progress)}/{weeklyData.challenge.target}
+            </button>
+          )}
+          {weeklyData?.progress?.completed && (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.25)', color: tc.headerText }}>
+              📅 ✅ 주간 달성!
+            </span>
           )}
         </div>
 
@@ -383,6 +429,32 @@ export default function GamePage() {
             {modal === 'achievements' && (
               <AchievementsPanel theme={theme} onClose={() => setModal(null)} />
             )}
+            {modal === 'weekly' && (
+              <WeeklyChallenge theme={theme} onClose={() => setModal(null)} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── 주간 챌린지 완료 팝업 ── */}
+      {weeklyDonePop && weeklyData && (
+        <div
+          className="fixed top-20 inset-x-0 flex justify-center z-[60] px-4 pointer-events-none"
+        >
+          <div
+            className="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl max-w-xs w-full"
+            style={{
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+              border: '2px solid #34d399',
+              animation: 'bounceIn 0.5s ease-out',
+            }}
+          >
+            <span className="text-4xl">{weeklyData.challenge.emoji}</span>
+            <div>
+              <p className="text-xs font-bold text-emerald-600">📅 주간 챌린지 달성!</p>
+              <p className="text-base font-black text-emerald-900">{weeklyData.challenge.title}</p>
+              <p className="text-xs text-emerald-700">보상: {weeklyData.challenge.reward}</p>
+            </div>
           </div>
         </div>
       )}

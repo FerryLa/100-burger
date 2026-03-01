@@ -35,6 +35,7 @@ import {
 } from 'firebase/firestore'
 import { db } from './config'
 import { checkNewAchievements } from '../data/achievements'
+import { getWeekKey, getChallengeForWeek } from '../data/weeklyChallenges'
 
 const today = () => new Date().toISOString().split('T')[0]
 const FARM_DOC      = (fid, type) => doc(db, 'families', fid, 'farm', type)
@@ -200,6 +201,10 @@ export async function harvestFarmToHands(familyId, cropType) {
     stage: 'harvested',
     harvestedAt: Timestamp.fromMillis(Date.now()),
   })
+
+  // 주간 챌린지 수확 카운터
+  await incrementWeeklyProgress(familyId, 'harvestCount').catch(() => {})
+
   return 3 // 수확 수량
 }
 
@@ -385,12 +390,20 @@ export async function completeBurger(familyId) {
     achievements:   [...existing, ...newAchievements],
   })
 
+  // ── 주간 챌린지 버거 카운터 ──────────────────────────────────
+  // (오늘 처음 완성한 경우만 카운트)
+  let weeklyBurgerCount = 0
+  if (lastDate !== todayStr) {  // 오늘 첫 번째 완성
+    weeklyBurgerCount = await incrementWeeklyProgress(familyId, 'burgerCount')
+  }
+
   return {
-    daily:           newDaily,
-    total:           newTotal,
-    newCoupon:       newCoupons > Math.floor(prevTotal / 100),
+    daily:             newDaily,
+    total:             newTotal,
+    newCoupon:         newCoupons > Math.floor(prevTotal / 100),
     streak,
     newAchievements,
+    weeklyBurgerCount,
   }
 }
 
@@ -498,4 +511,42 @@ export function watchMessages(familyId, callback) {
 // 하위 호환
 export async function waterPlant(familyId) {
   return waterFarm(familyId, 'tomato')
+}
+
+// ─── 주간 챌린지 ─────────────────────────────────────────────────────────────
+
+const WEEKLY_DOC = (fid, weekKey) =>
+  doc(db, 'families', fid, 'weeklyChallenges', weekKey)
+
+/** 주간 챌린지 실시간 구독 */
+export function watchWeeklyChallenge(familyId, callback) {
+  const weekKey = getWeekKey()
+  const challenge = getChallengeForWeek(weekKey)
+  return onSnapshot(WEEKLY_DOC(familyId, weekKey), (snap) => {
+    const progress = snap.exists() ? snap.data() : {}
+    callback({ challenge, progress, weekKey })
+  })
+}
+
+/**
+ * 주간 챌린지 진행도 증가
+ * field: 'burgerCount' | 'beanstalkCount' | 'harvestCount'
+ */
+export async function incrementWeeklyProgress(familyId, field, amount = 1) {
+  const weekKey = getWeekKey()
+  const ref     = WEEKLY_DOC(familyId, weekKey)
+  const snap    = await getDoc(ref)
+  const prev    = snap.exists() ? snap.data() : {}
+  const newVal  = (prev[field] || 0) + amount
+  await setDoc(ref, { ...prev, [field]: newVal }, { merge: true })
+  return newVal
+}
+
+/** 주간 챌린지 완료 표시 */
+export async function markWeeklyChallengeComplete(familyId) {
+  const weekKey = getWeekKey()
+  await setDoc(WEEKLY_DOC(familyId, weekKey), {
+    completed: true,
+    completedAt: serverTimestamp(),
+  }, { merge: true })
 }
