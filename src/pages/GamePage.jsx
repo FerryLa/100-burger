@@ -62,7 +62,7 @@ const THEME_CONFIG = {
 }
 
 export default function GamePage() {
-  const { familyId, role, gameState, setGameState, setFamilyMeta, user } = useGameStore(s => s)
+  const { familyId, role, gameState, setGameState, setFamilyMeta, logout, user } = useGameStore(s => s)
 
   const [farmTomato,    setFarmTomato]    = useState(null)
   const [farmLettuce,   setFarmLettuce]   = useState(null)
@@ -244,16 +244,20 @@ export default function GamePage() {
         className="px-4 py-2 flex items-center justify-between flex-shrink-0 shadow-lg"
         style={{ background: tc.headerBg }}
       >
-        {/* 왼쪽: 타이틀 */}
+        {/* 왼쪽: 타이틀 + 로그아웃 */}
         <div className="flex items-center gap-2">
           <span className="text-2xl">🍔</span>
           <div>
             <p className="text-base font-black leading-tight" style={{ color: tc.headerText }}>
               햄버거 만들기
             </p>
-            <p className="text-xs opacity-70 leading-tight" style={{ color: tc.headerText }}>
-              {roleLabel}
-            </p>
+            <button
+              onClick={() => { if (window.confirm('로그아웃 할까요?')) logout() }}
+              className="text-xs opacity-60 hover:opacity-100 leading-tight underline transition-opacity"
+              style={{ color: tc.headerText }}
+            >
+              {roleLabel} · 로그아웃
+            </button>
           </div>
         </div>
 

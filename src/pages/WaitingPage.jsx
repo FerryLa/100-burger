@@ -5,6 +5,7 @@ import { useGameStore } from '../store/useGameStore'
 
 export default function WaitingPage() {
   const inviteCode = useGameStore((s) => s.inviteCode)
+  const logout     = useGameStore((s) => s.logout)
 
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col items-center justify-center p-6">
@@ -27,6 +28,13 @@ export default function WaitingPage() {
       <p className="mt-8 text-gray-400 text-base animate-pulse">
         자녀 참여를 기다리는 중...
       </p>
+
+      <button
+        onClick={() => { if (window.confirm('로그아웃 할까요?')) logout() }}
+        className="mt-6 text-gray-400 text-sm underline hover:text-gray-600 transition-colors"
+      >
+        로그아웃
+      </button>
     </div>
   )
 }

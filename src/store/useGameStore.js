@@ -1,4 +1,11 @@
 import { create } from 'zustand'
+import { getAuth } from 'firebase/auth'
+
+const INITIAL = {
+  user: null, role: null, familyId: null, inviteCode: null, familyConnected: false,
+  totalBurgers: 0, streak: 0, maxStreak: 0, achievements: [],
+  gameState: null, messages: [],
+}
 
 export const useGameStore = create((set) => ({
   // 유저
@@ -38,4 +45,8 @@ export const useGameStore = create((set) => ({
   setGameState:  (gameState)  => set({ gameState }),
   setMessages:   (messages)   => set({ messages }),
   setTotalBurgers: (n)        => set({ totalBurgers: n }),
+  logout: async () => {
+    await getAuth().signOut()
+    set(INITIAL)
+  },
 }))
