@@ -35,7 +35,12 @@
       "Bash(git add src/components/Sink.jsx src/components/Grill.jsx)",
       "Bash(git add src/components/Kitchen.jsx)",
       "Bash(git add src/components/Refrigerator.jsx src/components/Farm.jsx)",
-      "Bash(git add src/pages/GamePage.jsx src/components/GameRoom.jsx .claude/settings.local.json)"
+      "Bash(git add src/pages/GamePage.jsx src/components/GameRoom.jsx .claude/settings.local.json)",
+      "Bash(git push origin main)",
+      "Bash(git add src/components/Refrigerator.jsx)",
+      "Bash(git add src/components/Grill.jsx)",
+      "Bash(git add src/components/Sink.jsx)",
+      "Bash(git add src/pages/GamePage.jsx .claude/settings.local.json)"
     ]
   }
 }

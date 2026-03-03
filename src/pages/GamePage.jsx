@@ -40,6 +40,26 @@ function getProgress(type, progress) {
   }
 }
 
+/* ── 인벤토리 아이콘 목록 ────────────────────────────────────── */
+const INVENTORY_ITEMS = [
+  { key: 'tomatoes',     emoji: '🍅', label: '토마토'    },
+  { key: 'lettuces',     emoji: '🥬', label: '양상추'    },
+  { key: 'bread',        emoji: '🍞', label: '빵'        },
+  { key: 'patty',        emoji: '🥩', label: '생패티'    },
+  { key: 'grilledPatty', emoji: '🥩', label: '구운패티', hot: true },
+  { key: 'bacon',        emoji: '🥓', label: '생베이컨'  },
+  { key: 'grilledBacon', emoji: '🥓', label: '구운베이컨', hot: true },
+  { key: 'sauce',        emoji: '🥫', label: '소스'      },
+]
+
+const PARTICLE_CSS = `
+@keyframes floatUp {
+  0%   { transform: translate(-50%,0) scale(1);    opacity: 1; }
+  100% { transform: translate(-50%,-80px) scale(1.5); opacity: 0; }
+}
+.part-pop { animation: floatUp 1.3s ease-out forwards; }
+`
+
 /* ── 테마 설정 ──────────────────────────────────────────────── */
 const THEME_CONFIG = {
   modern: {
@@ -87,6 +107,26 @@ export default function GamePage() {
   const [resetMsg,   setResetMsg]   = useState('')
   const [flowerBusy, setFlowerBusy] = useState(false)
   const [flowerMsg,  setFlowerMsg]  = useState('')
+
+  /* ── 파티클 팝업 ── */
+  const [particles, setParticles] = useState([])
+  const spawnParticlesRef = useRef(null)
+
+  function spawnParticles(emojis) {
+    const newPs = emojis.map((emoji, i) => ({
+      id: Date.now() + i + Math.random(),
+      emoji,
+      x: 30 + Math.random() * 40,
+      y: 40 + Math.random() * 20,
+      delay: i * 0.12,
+    }))
+    setParticles(prev => [...prev, ...newPs])
+    setTimeout(() => {
+      const ids = new Set(newPs.map(p => p.id))
+      setParticles(prev => prev.filter(p => !ids.has(p.id)))
+    }, 2200)
+  }
+  spawnParticlesRef.current = spawnParticles
 
   /* ── 업적 팝업 큐 ── */
   const [achPopup,  setAchPopup]  = useState(null)   // { id, emoji, label } | null
@@ -216,6 +256,7 @@ export default function GamePage() {
     }
     const m = meta[cropType] ?? meta.tomato
     setCarrying({ type: cropType, emoji: m.emoji, label: m.label, qty })
+    spawnParticlesRef.current?.([m.emoji, '✨', m.emoji, '⭐', m.emoji])
   }, [])
 
   /* ── 버거 완성 (Kitchen이 { daily, total, newCoupon, streak, newAchievements } 반환) ── */
@@ -225,6 +266,7 @@ export default function GamePage() {
     const newCoupon = typeof result === 'object' ? result.newCoupon : (total % 100 === 0)
     if (newCoupon && total > 0) setCelebrate(total)
     if (result?.newAchievements?.length) enqueueAchievements(result.newAchievements)
+    spawnParticlesRef.current?.(['🍔', '🎉', '🍔', '⭐', '🎉', '🍔'])
   }
 
   /* ── (테스트) 전체 초기화 ── */
@@ -334,9 +376,21 @@ export default function GamePage() {
             style={{ background: 'rgba(255,255,255,0.2)', color: tc.headerText }}
           >
             <span className="text-xl">🍔</span>
-            <div className="flex flex-col items-center leading-none">
+            <div className="flex flex-col items-center leading-none min-w-[64px]">
               <span>{totalBurgers}개</span>
-              <span className="text-xs opacity-60">/ 100개 쿠폰</span>
+              {/* 다음 쿠폰까지 진행 바 */}
+              <div className="w-full bg-white/20 rounded-full h-1.5 mt-0.5">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${(totalBurgers % 100)}%`,
+                    background: 'rgba(255,255,255,0.85)',
+                  }}
+                />
+              </div>
+              <span className="text-xs opacity-60 mt-0.5">
+                {100 - (totalBurgers % 100)}개 남음
+              </span>
             </div>
             {burgerCount > 0 && (
               <span className="text-xs bg-white/20 rounded-full px-1.5 py-0.5">오늘 {burgerCount}</span>
@@ -439,6 +493,29 @@ export default function GamePage() {
           onPositionChange={handlePositionChange}
           theme={theme}
         />
+      </div>
+
+      {/* ── 인벤토리 바 ── */}
+      <div
+        className="flex-shrink-0 flex gap-1.5 px-3 py-1.5 overflow-x-auto"
+        style={{ background: 'rgba(0,0,0,0.06)', borderTop: '1px solid rgba(0,0,0,0.06)' }}
+      >
+        {INVENTORY_ITEMS.map(({ key, emoji, label, hot }) => {
+          const qty = inventory?.[key] || 0
+          if (qty === 0 && !['bread', 'patty', 'bacon', 'sauce'].includes(key)) return null
+          return (
+            <div
+              key={key}
+              title={label}
+              className={`flex items-center gap-1 px-2 py-1 rounded-xl text-sm font-black flex-shrink-0 transition-all
+                ${qty > 0 ? 'bg-white/80 text-gray-800 shadow-sm' : 'bg-white/20 text-gray-400 opacity-50'}`}
+            >
+              <span>{emoji}</span>
+              {hot && qty > 0 && <span className="text-xs leading-none">🔥</span>}
+              <span>{qty}</span>
+            </div>
+          )
+        })}
       </div>
 
       {/* ── 하단 메시지 패널 ── */}
@@ -602,6 +679,18 @@ export default function GamePage() {
           </div>
         </div>
       )}
+
+      {/* ── 파티클 오버레이 ── */}
+      <style>{PARTICLE_CSS}</style>
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="part-pop fixed pointer-events-none select-none z-[200] text-3xl"
+          style={{ left: `${p.x}vw`, top: `${p.y}vh`, animationDelay: `${p.delay}s` }}
+        >
+          {p.emoji}
+        </div>
+      ))}
 
       {/* ── (테스트) 버튼 그룹 ── */}
       <div className="fixed bottom-20 right-3 z-40 flex flex-col items-end gap-2">
