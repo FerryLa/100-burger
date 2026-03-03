@@ -19,7 +19,8 @@ const OBJS = [
   { id: 'farm_lettuce', x: 75,  y: 255, label: '상추밭'   },
   { id: 'fridge',       x: 318, y: 95,  label: '냉장고'   },
   { id: 'sink',         x: 408, y: 95,  label: '씽크대'   },
-  { id: 'kitchen',      x: 498, y: 95,  label: '조리대'   },
+  { id: 'grill',        x: 498, y: 95,  label: '불판'     },
+  { id: 'kitchen',      x: 570, y: 95,  label: '조리대'   },
   { id: 'order',        x: 550, y: 378, label: '발주대'   },
 ]
 const WALLS2D = OBJS.map(o => ({ x: o.x - 35, y: o.y - 35, w: 70, h: 70 }))
@@ -50,12 +51,12 @@ const THEMES = {
     ob: {
       farm_tomato: 0x86efac, farm_lettuce: 0xa7f3d0,
       fridge: 0xbae6fd, sink: 0xe0f2fe,
-      kitchen: 0xfed7aa, order: 0xd8b4fe,
+      grill: 0x374151, kitchen: 0xfed7aa, order: 0xd8b4fe,
     },
     obDark: {
       farm_tomato: 0x4ade80, farm_lettuce: 0x34d399,
       fridge: 0x7dd3fc, sink: 0x86efac,
-      kitchen: 0xfcd34d, order: 0xa78bfa,
+      grill: 0x1f2937, kitchen: 0xfcd34d, order: 0xa78bfa,
     },
   },
   hanok: {
@@ -71,12 +72,12 @@ const THEMES = {
     ob: {
       farm_tomato: 0x86efac, farm_lettuce: 0xa7f3d0,
       fridge: 0xbae6fd, sink: 0xe0f2fe,
-      kitchen: 0xfed7aa, order: 0xd8b4fe,
+      grill: 0x374151, kitchen: 0xfed7aa, order: 0xd8b4fe,
     },
     obDark: {
       farm_tomato: 0x4ade80, farm_lettuce: 0x34d399,
       fridge: 0x7dd3fc, sink: 0x86efac,
-      kitchen: 0xfcd34d, order: 0xa78bfa,
+      grill: 0x1f2937, kitchen: 0xfcd34d, order: 0xa78bfa,
     },
   },
 }
@@ -481,6 +482,36 @@ function buildObject3D(scene, t, obj) {
       drop.position.set(0.015 * (i - 1), h + bH + 0.25 - i * 0.055, 0.15); group.add(drop)
     }
 
+  } else if (obj.id === 'grill') {
+    // 불판: 패티+베이컨 조리 공간
+    w = 0.95; h = 0.82; d = 0.76
+    const body = mkMesh(box(w, h, d), lm(baseColor)); body.position.y = h / 2; group.add(body)
+    // 불판 상판 (어두운 철판)
+    const plate = mkMesh(box(w + 0.06, 0.07, d + 0.06), lm(0x1f2937)); plate.position.y = h + 0.035; group.add(plate)
+    // 그릴 격자 (가로 3줄)
+    for (let i = 0; i < 3; i++) {
+      const bar = mkMesh(box(w - 0.08, 0.025, 0.04), lm(0x374151))
+      bar.position.set(0, h + 0.085, -0.22 + i * 0.22); group.add(bar)
+    }
+    // 그릴 격자 (세로 3줄)
+    for (let i = 0; i < 3; i++) {
+      const bar = mkMesh(box(0.04, 0.025, d - 0.08), lm(0x374151))
+      bar.position.set(-0.26 + i * 0.26, h + 0.085, 0); group.add(bar)
+    }
+    // 패티 (갈색 원기둥)
+    const patty1 = mkMesh(cyl(0.14, 0.14, 0.038, 12), lm(0x7c3a15)); patty1.position.set(-0.15, h + 0.11, 0.06); group.add(patty1)
+    // 베이컨 (얇은 핑크 직사각)
+    const bacon1 = mkMesh(box(0.30, 0.025, 0.10), lm(0xfca5a5)); bacon1.position.set(0.14, h + 0.095, -0.08); group.add(bacon1)
+    const bacon2 = mkMesh(box(0.28, 0.025, 0.10), lm(0xf87171)); bacon2.position.set(0.14, h + 0.12, 0.08); group.add(bacon2)
+    // 연기 (반투명 구)
+    const smoke1 = mkMesh(sph(0.08, 6), lm(0xd1d5db, { transparent: true, opacity: 0.45 })); smoke1.position.set(-0.15, h + 0.38, 0.06); group.add(smoke1)
+    const smoke2 = mkMesh(sph(0.06, 6), lm(0xe5e7eb, { transparent: true, opacity: 0.35 })); smoke2.position.set(-0.10, h + 0.52, 0.00); group.add(smoke2)
+    // 화로 레그 (다리 4개)
+    ;[[-0.35, -0.30], [0.35, -0.30], [-0.35, 0.30], [0.35, 0.30]].forEach(([lx, lz]) => {
+      const leg = mkMesh(cyl(0.025, 0.025, 0.12), lm(0x4b5563))
+      leg.position.set(lx, 0.06, lz); group.add(leg)
+    })
+
   } else if (obj.id === 'kitchen') {
     // 조리대: 버거 준비 공간
     w = 1.05; h = 0.85; d = 0.82
@@ -630,7 +661,7 @@ function buildCharacter(type, t) {
 
 /* ══ 메인 컴포넌트 ═══════════════════════════════════════════ */
 export default function GameRoom3D({
-  farmTomato, farmLettuce, inventory,
+  farmTomato, farmLettuce, inventory, grill,
   carrying, otherPlayerPos, otherPlayerRole,
   onInteract, onPositionChange,
   theme = 'modern',
@@ -881,8 +912,13 @@ export default function GameRoom3D({
       if (['seed', 'growing'].includes(farm.stage)) return { text: '🌱 싹 트는 중', color: '#65a30d' }
     }
     if (id === 'fridge') {
-      const v = inventory?.veggies || 0
+      const v = (inventory?.tomatoes || 0) + (inventory?.lettuces || 0)
       return v === 0 ? { text: '비었어요', color: '#9ca3af' } : { text: `채소 ${v}개`, color: '#16a34a' }
+    }
+    if (id === 'grill') {
+      const gs = grill?.stage ?? 'idle'
+      if (gs === 'grilling') return { text: '🔥 굽는 중...', color: '#ea580c' }
+      if (gs === 'done')     return { text: '✅ 다 구워짐!', color: '#16a34a' }
     }
     if ((id === 'sink' || id === 'fridge') && carrying) return { text: '🧺 여기 놓기!', color: '#d97706' }
     return null
