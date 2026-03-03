@@ -15,13 +15,13 @@ const SX = ROOM.W / CW, SZ = ROOM.D / CH
 const CHAR_R = 20, SPEED = 3, INTERACT_D = 68
 
 const OBJS = [
-  { id: 'farm_tomato',  x: 75,  y: 105, label: '토마토밭' },
-  { id: 'farm_lettuce', x: 75,  y: 255, label: '상추밭'   },
-  { id: 'fridge',       x: 318, y: 95,  label: '냉장고'   },
-  { id: 'sink',         x: 408, y: 95,  label: '씽크대'   },
-  { id: 'grill',        x: 498, y: 95,  label: '불판'     },
-  { id: 'kitchen',      x: 570, y: 95,  label: '조리대'   },
-  { id: 'order',        x: 550, y: 378, label: '발주대'   },
+  { id: 'farm_tomato',  x: 80,  y: 108, label: '토마토밭' },
+  { id: 'farm_lettuce', x: 80,  y: 265, label: '상추밭'   },
+  { id: 'fridge',       x: 252, y: 88,  label: '냉장고'   },
+  { id: 'sink',         x: 355, y: 88,  label: '씽크대'   },
+  { id: 'grill',        x: 456, y: 88,  label: '불판'     },
+  { id: 'kitchen',      x: 556, y: 88,  label: '조리대'   },
+  { id: 'order',        x: 548, y: 385, label: '발주대'   },
 ]
 const WALLS2D = OBJS.map(o => ({ x: o.x - 35, y: o.y - 35, w: 70, h: 70 }))
 
@@ -211,6 +211,12 @@ function buildScene(theme) {
 
   /* 물뿌리개 */
   buildWateringCan(scene, t)
+
+  /* 장식 */
+  buildBookshelf(scene, t)
+  buildWallClock(scene, t)
+  buildPottedPlant(scene, t, 1.4, 2.0)   // 스탠드 옆
+  buildPottedPlant(scene, t, 0.4, 8.2)   // 왼쪽 벽 뒤쪽 코너
 
   return scene
 }
@@ -429,6 +435,61 @@ function buildBeanstalk(scene, pos) {
   group.visible = false
   scene.add(group)
   return group
+}
+
+/* ── 책장 (왼쪽 벽) ─────────────────────────────────────────── */
+function buildBookshelf(scene, t) {
+  const fMat = lm(t.cDark ?? 0xa0702a)
+  const frame = mkMesh(box(0.14, 1.6, 0.92), fMat)
+  frame.position.set(0.07, 0.8, 4.5); scene.add(frame)
+  ;[0.38, 0.80, 1.22].forEach(sy => {
+    const shelf = mkMesh(box(0.1, 0.04, 0.90), lm(t.counter ?? 0xfefefe))
+    shelf.position.set(0.05, sy, 4.5); scene.add(shelf)
+  })
+  const bookColors = [0xef4444, 0x3b82f6, 0x22c55e, 0xf59e0b, 0xa855f7, 0xec4899, 0xfb923c, 0x0ea5e9]
+  bookColors.forEach((col, i) => {
+    const bk = mkMesh(box(0.08, 0.22 + (i % 3) * 0.04, 0.11), lm(col))
+    bk.position.set(0.05, 0.27 + Math.floor(i / 4) * 0.42, 4.15 + (i % 4) * 0.20); scene.add(bk)
+  })
+}
+
+/* ── 벽 시계 (뒷벽) ─────────────────────────────────────────── */
+function buildWallClock(scene, t) {
+  const clockBase = mkMesh(cyl(0.3, 0.3, 0.045, 24), lm(0xf8fafc))
+  clockBase.rotation.x = Math.PI / 2; clockBase.position.set(6.8, 2.9, 0.055); scene.add(clockBase)
+  const rim = mkMesh(cyl(0.32, 0.32, 0.03, 24), lm(t.trim))
+  rim.rotation.x = Math.PI / 2; rim.position.set(6.8, 2.9, 0.03); scene.add(rim)
+  // 시침
+  const hHand = mkMesh(box(0.025, 0.14, 0.025), lm(0x1e293b))
+  hHand.rotation.z = -0.8; hHand.position.set(6.77, 2.97, 0.085); scene.add(hHand)
+  // 분침
+  const mHand = mkMesh(box(0.018, 0.20, 0.018), lm(0x374151))
+  mHand.rotation.z = 1.2; mHand.position.set(6.89, 2.84, 0.085); scene.add(mHand)
+  // 중심 축
+  const center = mkMesh(sph(0.028, 8), lm(0xef4444))
+  center.position.set(6.8, 2.9, 0.09); scene.add(center)
+  // 숫자 점 (12, 3, 6, 9 위치)
+  ;[[0, 0.26], [0.26, 0], [0, -0.26], [-0.26, 0]].forEach(([dx, dz]) => {
+    const dot = mkMesh(sph(0.024, 6), lm(0x64748b))
+    dot.position.set(6.8 + dx, 2.9, 0.09 + dz); scene.add(dot)
+  })
+}
+
+/* ── 화분 ────────────────────────────────────────────────────── */
+function buildPottedPlant(scene, t, wx, wz) {
+  const pot = mkMesh(cyl(0.12, 0.15, 0.22, 12), lm(0xc0622d))
+  pot.position.set(wx, 0.11, wz); scene.add(pot)
+  const soil = mkMesh(cyl(0.11, 0.11, 0.04, 12), lm(0x4e342e))
+  soil.position.set(wx, 0.23, wz); scene.add(soil)
+  const lc = [t.plants ?? 0x22c55e, t.plantsAlt ?? 0x4ade80]
+  for (let i = 0; i < 6; i++) {
+    const ang = (i / 6) * Math.PI * 2
+    const lf = mkMesh(sph(0.09, 8), lm(lc[i % 2]))
+    lf.scale.set(1.5, 0.6, 1.1)
+    lf.position.set(wx + Math.cos(ang) * 0.13, 0.36 + (i % 2) * 0.06, wz + Math.sin(ang) * 0.13)
+    scene.add(lf)
+  }
+  const top = mkMesh(sph(0.10, 8), lm(lc[0])); top.position.set(wx, 0.46, wz); scene.add(top)
 }
 
 /* ── 3D 오브젝트 ─────────────────────────────────────────────── */
@@ -688,6 +749,8 @@ export default function GameRoom3D({
   const objMeshRef = useRef([])
   const raycasterRef = useRef(null)
   const bsRef      = useRef({ tomato: null, lettuce: null })  // beanstalk groups
+  const grillRef   = useRef(grill)  // grill state for animation
+  useEffect(() => { grillRef.current = grill }, [grill])
 
   function findNearby2D(p) {
     return OBJS.find(o => d2(p, o) < INTERACT_D) ?? null
@@ -877,6 +940,22 @@ export default function GameRoom3D({
       if (bs.tomato?.visible)  bs.tomato.rotation.y  = Math.sin(frame * 0.015) * 0.06
       if (bs.lettuce?.visible) bs.lettuce.rotation.y = Math.sin(frame * 0.015 + 1) * 0.06
 
+      // 불판 불꽃 emissive 펄싱
+      const grillStage = grillRef.current?.stage ?? 'idle'
+      if (grillStage === 'grilling' || grillStage === 'done') {
+        const grillMesh = objMeshRef.current.find(m => m.userData.objectId === 'grill')
+        if (grillMesh) {
+          const intensity = grillStage === 'grilling'
+            ? 0.18 + Math.sin(frame * 0.14) * 0.12
+            : 0.08 + Math.sin(frame * 0.08) * 0.05
+          const color = grillStage === 'grilling' ? 0xff5500 : 0x44cc44
+          grillMesh.traverse(child => {
+            if (!child.isMesh || !child.material) return
+            setEmissive(child.material, color, intensity)
+          })
+        }
+      }
+
       if (rendRef.current && sceneRef.current && camRef.current) {
         rendRef.current.render(sceneRef.current, camRef.current)
       }
@@ -1011,8 +1090,8 @@ function DPad({ keysRef, onAction, theme }) {
   const abg   = warm ? '#92400e' : '#f59e0b'
   const col   = warm ? '#6b3a18' : '#78350f'
   const style = {
-    width: 46, height: 46, borderRadius: 12, background: bg,
-    boxShadow: '0 3px 0 rgba(0,0,0,0.18)', fontSize: 20,
+    width: 54, height: 54, borderRadius: 14, background: bg,
+    boxShadow: '0 4px 0 rgba(0,0,0,0.22)', fontSize: 22,
     fontWeight: 900, color: col, border: 'none', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     userSelect: 'none', touchAction: 'none',
@@ -1024,13 +1103,13 @@ function DPad({ keysRef, onAction, theme }) {
     >{label}</button>
   )
   return (
-    <div className="absolute bottom-3 left-3 z-30 flex gap-2 items-end" style={{ opacity: 0.88 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 46px)', gap: 4 }}>
+    <div className="absolute bottom-4 left-4 z-30 flex gap-3 items-end" style={{ opacity: 0.92 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 54px)', gap: 5 }}>
         <div />{dir('↑', 'ArrowUp')}<div />
         {dir('←', 'ArrowLeft')}{dir('↓', 'ArrowDown')}{dir('→', 'ArrowRight')}
       </div>
       <button
-        style={{ ...style, width: 52, height: 52, borderRadius: '50%', background: abg, color: 'white', fontSize: 18, boxShadow: '0 4px 0 rgba(0,0,0,0.25)' }}
+        style={{ ...style, width: 62, height: 62, borderRadius: '50%', background: abg, color: 'white', fontSize: 22, boxShadow: '0 5px 0 rgba(0,0,0,0.28)' }}
         onPointerDown={onAction}
       >A</button>
     </div>
