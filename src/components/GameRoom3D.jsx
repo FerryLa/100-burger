@@ -228,13 +228,9 @@ function buildScene(theme) {
   /* 주방 카운터 */
   buildKitchenCounter(scene, t, theme)
 
-  /* 물뿌리개 */
-  buildWateringCan(scene, t)
-
   /* 장식 */
-  buildBookshelf(scene, t)
   buildWallClock(scene, t)
-  buildPottedPlant(scene, t, 1.4, 2.0)   // 스탠드 옆
+  if (theme === 'hanok') buildBookshelf(scene, t)
   buildPottedPlant(scene, t, 0.4, 8.2)   // 왼쪽 벽 뒤쪽 코너
 
   return scene
