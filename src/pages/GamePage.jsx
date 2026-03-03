@@ -63,14 +63,14 @@ const PARTICLE_CSS = `
 /* ── 테마 설정 ──────────────────────────────────────────────── */
 const THEME_CONFIG = {
   modern: {
-    pageBg:      'linear-gradient(160deg, #fef9f0 0%, #f5e8d0 100%)',
-    headerBg:    'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)',
-    headerText:  '#fff',
-    modalBg:     'linear-gradient(160deg, #fffbf5 0%, #fef3e2 100%)',
-    carryBanner: '#f59e0b',
-    msgBg:       '#fffbf5',
+    pageBg:      'linear-gradient(160deg, #f2ece2 0%, #e8dfd3 100%)',
+    headerBg:    'rgba(253,248,241,0.96)',
+    headerText:  '#2F2118',
+    modalBg:     'linear-gradient(160deg, #fdf9f4 0%, #f5eee4 100%)',
+    carryBanner: '#C87B4F',
+    msgBg:       '#fdf9f4',
     label:       '모던 🏠',
-    burgerCount: '#92400e',
+    burgerCount: '#5a3a20',
   },
   hanok: {
     pageBg:      'linear-gradient(160deg, #1a0e06 0%, #2d1a0a 100%)',
@@ -349,8 +349,14 @@ export default function GamePage() {
     >
       {/* ── 헤더 ── */}
       <header
-        className="px-4 py-2 flex items-center justify-between flex-shrink-0 shadow-lg"
-        style={{ background: tc.headerBg }}
+        className="px-4 py-2 flex items-center justify-between flex-shrink-0"
+        style={{
+          background: tc.headerBg,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(175,155,128,0.25)',
+          boxShadow: '0 2px 12px rgba(90,60,30,0.08)',
+        }}
       >
         {/* 왼쪽: 타이틀 + 로그아웃 */}
         <div className="flex items-center gap-2">
@@ -497,18 +503,36 @@ export default function GamePage() {
 
       {/* ── 인벤토리 바 ── */}
       <div
-        className="flex-shrink-0 flex gap-1.5 px-3 py-1.5 overflow-x-auto"
-        style={{ background: 'rgba(0,0,0,0.06)', borderTop: '1px solid rgba(0,0,0,0.06)' }}
+        className="flex-shrink-0 flex gap-1.5 px-3 py-2 overflow-x-auto"
+        style={{
+          background: theme === 'modern' ? 'rgba(253,248,241,0.92)' : 'rgba(30,15,5,0.85)',
+          borderTop: theme === 'modern'
+            ? '1px solid rgba(175,155,128,0.2)'
+            : '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
       >
         {INVENTORY_ITEMS.map(({ key, emoji, label, hot }) => {
           const qty = inventory?.[key] || 0
           if (qty === 0 && !['bread', 'patty', 'bacon', 'sauce'].includes(key)) return null
+          const hasQty = qty > 0
           return (
             <div
               key={key}
               title={label}
-              className={`flex items-center gap-1 px-2 py-1 rounded-xl text-sm font-black flex-shrink-0 transition-all
-                ${qty > 0 ? 'bg-white/80 text-gray-800 shadow-sm' : 'bg-white/20 text-gray-400 opacity-50'}`}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl text-sm font-black flex-shrink-0 transition-all duration-200"
+              style={{
+                background: hasQty
+                  ? (theme === 'modern' ? 'rgba(255,255,255,0.85)' : 'rgba(255,240,200,0.18)')
+                  : 'rgba(0,0,0,0.05)',
+                color: hasQty ? (theme === 'modern' ? '#3a2510' : '#fef3c7') : '#aaa',
+                boxShadow: hasQty ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
+                opacity: hasQty ? 1 : 0.45,
+                border: hasQty
+                  ? (theme === 'modern' ? '1.5px solid rgba(175,140,90,0.25)' : '1.5px solid rgba(255,220,120,0.2)')
+                  : '1.5px solid transparent',
+              }}
             >
               <span>{emoji}</span>
               {hot && qty > 0 && <span className="text-xs leading-none">🔥</span>}

@@ -39,24 +39,24 @@ const v3 = (x2, z2, y = 0) => new THREE.Vector3(x2 * SX, y, z2 * SZ)
 /* ── 테마 ───────────────────────────────────────────────────── */
 const THEMES = {
   modern: {
-    bgColor: 0xf5ece0,
-    floor: 0xe8d4a8, grid: 0xc8a870,
-    wBack: 0xfdf6ed, wLeft: 0xf0e8d8, trim: 0xc8a070,
-    glass: 0xbae6fd, glassOpacity: 0.55,
-    farmF: 0x8b5e3c, soil: 0x5d4037,
-    counter: 0xffffff, cDark: 0xe0d8cc,
-    plants: 0x22c55e, plantsAlt: 0x4ade80,
-    tomato: 0xef4444, lettuce: 0x86efac,
+    bgColor: 0xebe0d4,
+    floor: 0xe2d4c0, grid: 0xc8b8a4,
+    wBack: 0xcfc4b4, wLeft: 0xc4bab0, trim: 0xa89070,
+    glass: 0xc4d8e8, glassOpacity: 0.50,
+    farmF: 0x8b6040, soil: 0x5d4037,
+    counter: 0xf4ede4, cDark: 0xd8ccbc,
+    plants: 0x4a9e5c, plantsAlt: 0x6ab87a,
+    tomato: 0xcc4444, lettuce: 0x78c890,
     skin: 0xfcd9b6, hair: 0x78350f, hairAlt: 0x92400e,
     ob: {
-      farm_tomato: 0x86efac, farm_lettuce: 0xa7f3d0,
-      fridge: 0xbae6fd, sink: 0xe0f2fe,
-      grill: 0x374151, kitchen: 0xfed7aa, order: 0xd8b4fe,
+      farm_tomato: 0xa4cca8, farm_lettuce: 0xb0d4bc,
+      fridge: 0xb4ccd8, sink: 0xc4d4d8,
+      grill: 0x3c4450, kitchen: 0xd8c4a0, order: 0xc4b0cc,
     },
     obDark: {
-      farm_tomato: 0x4ade80, farm_lettuce: 0x34d399,
-      fridge: 0x7dd3fc, sink: 0x86efac,
-      grill: 0x1f2937, kitchen: 0xfcd34d, order: 0xa78bfa,
+      farm_tomato: 0x78aa80, farm_lettuce: 0x88b898,
+      fridge: 0x88aac0, sink: 0x90a8b4,
+      grill: 0x1f2937, kitchen: 0xb8a070, order: 0x9888aa,
     },
   },
   hanok: {
@@ -80,6 +80,31 @@ const THEMES = {
       grill: 0x1f2937, kitchen: 0xfcd34d, order: 0xa78bfa,
     },
   },
+}
+
+/* ── 타일 바닥 텍스처 ────────────────────────────────────────── */
+function makeTileTexture(floorHex) {
+  const size = 128
+  const c = document.createElement('canvas')
+  c.width = c.height = size
+  const ctx = c.getContext('2d')
+  const r = (floorHex >> 16) & 0xff
+  const g = (floorHex >> 8) & 0xff
+  const b = floorHex & 0xff
+  ctx.fillStyle = `rgb(${r},${g},${b})`
+  ctx.fillRect(0, 0, size, size)
+  // 타일 경계선 (미묘한 홈)
+  ctx.strokeStyle = `rgba(160,138,110,0.35)`
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(1, 1, size - 2, size - 2)
+  // 내부 하이라이트 (광택)
+  ctx.strokeStyle = `rgba(255,248,235,0.18)`
+  ctx.lineWidth = 1
+  ctx.strokeRect(3, 3, size - 6, size - 6)
+  const tex = new THREE.CanvasTexture(c)
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(ROOM.W, ROOM.D)
+  return tex
 }
 
 /* ── 재질 헬퍼 ──────────────────────────────────────────────── */
@@ -112,8 +137,8 @@ function buildScene(theme) {
   /* 조명 */
   scene.add(new THREE.AmbientLight(0xfff5e4, 0.7))
 
-  const sun = new THREE.DirectionalLight(0xfff0d8, 1.1)
-  sun.position.set(10, 18, 12)
+  const sun = new THREE.DirectionalLight(0xfff5e8, 1.0)
+  sun.position.set(15, 16, 4)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)
   sun.shadow.camera.left   = -16
@@ -140,26 +165,38 @@ function buildScene(theme) {
   kitchenLight.position.set(9.5, 1.8, 1.5)
   scene.add(kitchenLight)
 
-  /* 바닥 */
-  const floor = mkMesh(box(ROOM.W + 0.2, 0.1, ROOM.D + 0.2), lm(t.floor))
+  /* 바닥 (타일 텍스처) */
+  const floorTex = theme === 'modern' ? makeTileTexture(t.floor) : null
+  const floorMat = floorTex
+    ? new THREE.MeshLambertMaterial({ map: floorTex })
+    : lm(t.floor)
+  const floor = mkMesh(box(ROOM.W + 0.2, 0.1, ROOM.D + 0.2), floorMat)
   floor.position.set(ROOM.W / 2, -0.05, ROOM.D / 2)
   scene.add(floor)
 
-  const grid = new THREE.GridHelper(Math.max(ROOM.W, ROOM.D) + 1, 13, t.grid, t.grid)
-  grid.position.set(ROOM.W / 2, 0.02, ROOM.D / 2)
-  ;(Array.isArray(grid.material) ? grid.material : [grid.material]).forEach(m => {
-    m.transparent = true; m.opacity = theme === 'hanok' ? 0.3 : 0.2
-  })
-  scene.add(grid)
+  /* hanok은 기존 grid 유지 */
+  if (theme === 'hanok') {
+    const grid = new THREE.GridHelper(Math.max(ROOM.W, ROOM.D) + 1, 13, t.grid, t.grid)
+    grid.position.set(ROOM.W / 2, 0.02, ROOM.D / 2)
+    ;(Array.isArray(grid.material) ? grid.material : [grid.material]).forEach(m => {
+      m.transparent = true; m.opacity = 0.3
+    })
+    scene.add(grid)
+  }
 
-  /* 러그 (모던) */
+  /* 러그 - 타일 그리드에 정렬 (3×2 타일 단위, 테라코타) */
   if (theme === 'modern') {
-    const rug = mkMesh(box(3.5, 0.02, 2.8), lm(0xfbbf24, { transparent: true, opacity: 0.7 }))
-    rug.position.set(3.5, 0.02, 5.5)
-    scene.add(rug)
-    const rugBorder = mkMesh(box(3.7, 0.015, 3.0), lm(0xd97706, { transparent: true, opacity: 0.5 }))
-    rugBorder.position.set(3.5, 0.015, 5.5)
+    const rugBorder = mkMesh(box(3.14, 0.018, 2.14), lm(0x9a6c48, { transparent: true, opacity: 0.65 }))
+    rugBorder.position.set(3.0, 0.018, 5.0)
     scene.add(rugBorder)
+    const rug = mkMesh(box(3.0, 0.025, 2.0), lm(0xc49a6e, { transparent: true, opacity: 0.82 }))
+    rug.position.set(3.0, 0.025, 5.0)
+    scene.add(rug)
+    // 러그 안쪽 패턴 (십자 라인)
+    const rugH = mkMesh(box(2.8, 0.026, 0.04), lm(0xa87850, { transparent: true, opacity: 0.5 }))
+    rugH.position.set(3.0, 0.027, 5.0); scene.add(rugH)
+    const rugV = mkMesh(box(0.04, 0.026, 1.8), lm(0xa87850, { transparent: true, opacity: 0.5 }))
+    rugV.position.set(3.0, 0.027, 5.0); scene.add(rugV)
   }
 
   /* 뒷벽 */
@@ -820,7 +857,7 @@ export default function GameRoom3D({
     const camera = new THREE.OrthographicCamera(
       -fH * aspect / 2, fH * aspect / 2, fH / 2, -fH / 2, 0.1, 120,
     )
-    camera.position.set(16, 14, 16)
+    camera.position.set(18, 10, 18)
     camera.lookAt(new THREE.Vector3(ROOM.W / 2 - 0.5, 0, ROOM.D / 2))
     camera.updateProjectionMatrix()
     camera.updateMatrixWorld(true)   // 행렬 즉시 초기화 (핵심 수정)
@@ -1082,35 +1119,51 @@ export default function GameRoom3D({
   )
 }
 
-/* ── D-패드 ─────────────────────────────────────────────────── */
+/* ── D-패드 (frosted glass 원형) ─────────────────────────────── */
 function DPad({ keysRef, onAction, theme }) {
   const press = (key, down) => { keysRef.current[key] = down }
-  const warm  = theme === 'hanok'
-  const bg    = warm ? 'rgba(245,220,170,0.88)' : 'rgba(255,255,255,0.88)'
-  const abg   = warm ? '#92400e' : '#f59e0b'
-  const col   = warm ? '#6b3a18' : '#78350f'
-  const style = {
-    width: 54, height: 54, borderRadius: 14, background: bg,
-    boxShadow: '0 4px 0 rgba(0,0,0,0.22)', fontSize: 22,
-    fontWeight: 900, color: col, border: 'none', cursor: 'pointer',
+  const btnStyle = {
+    width: 52, height: 52, borderRadius: '50%',
+    background: 'rgba(255,252,248,0.28)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 0 rgba(0,0,0,0.14)',
+    fontSize: 20, fontWeight: 900,
+    color: 'rgba(50,34,20,0.82)',
+    border: '1.5px solid rgba(255,255,255,0.45)',
+    cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     userSelect: 'none', touchAction: 'none',
+    transition: 'transform 0.06s, box-shadow 0.06s',
   }
   const dir = (label, key) => (
-    <button key={key} style={style}
-      onPointerDown={() => press(key, true)} onPointerUp={() => press(key, false)}
-      onPointerLeave={() => press(key, false)} onPointerCancel={() => press(key, false)}
+    <button key={key} style={btnStyle}
+      onPointerDown={(e) => { e.currentTarget.style.transform = 'scale(0.9)'; press(key, true) }}
+      onPointerUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; press(key, false) }}
+      onPointerLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; press(key, false) }}
+      onPointerCancel={(e) => { e.currentTarget.style.transform = 'scale(1)'; press(key, false) }}
     >{label}</button>
   )
   return (
-    <div className="absolute bottom-4 left-4 z-30 flex gap-3 items-end" style={{ opacity: 0.92 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 54px)', gap: 5 }}>
+    <div className="absolute bottom-4 left-4 z-30 flex gap-3 items-end" style={{ opacity: 0.96 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 52px)', gap: 4 }}>
         <div />{dir('↑', 'ArrowUp')}<div />
         {dir('←', 'ArrowLeft')}{dir('↓', 'ArrowDown')}{dir('→', 'ArrowRight')}
       </div>
       <button
-        style={{ ...style, width: 62, height: 62, borderRadius: '50%', background: abg, color: 'white', fontSize: 22, boxShadow: '0 5px 0 rgba(0,0,0,0.28)' }}
-        onPointerDown={onAction}
+        style={{
+          ...btnStyle,
+          width: 60, height: 60,
+          background: '#C87B4F',
+          color: 'white',
+          fontSize: 18,
+          fontWeight: 900,
+          border: '1.5px solid rgba(255,200,160,0.5)',
+          boxShadow: '0 3px 12px rgba(200,123,79,0.45), 0 5px 0 rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,200,160,0.6)',
+        }}
+        onPointerDown={(e) => { e.currentTarget.style.transform = 'scale(0.9)'; onAction() }}
+        onPointerUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+        onPointerLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
       >A</button>
     </div>
   )
