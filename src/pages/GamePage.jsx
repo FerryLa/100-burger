@@ -11,7 +11,8 @@ import {
   deliverPendingOrders, syncFarmStage, sendMessage,
   syncPosition, watchOtherPosition,
   storeVeggiesInFridge, instantCompleteAll, instantDeliverOrders,
-  watchFamilyMeta, resetGameState, instantFlowerFarms,
+  watchFamilyMeta, resetGameState, instantFlowerFarms, updateCookingStage,
+  watchGrill, syncGrillStage,
 } from '../firebase/gameService'
 import { useGameStore } from '../store/useGameStore'
 import GameRoom       from '../components/GameRoom3D'
@@ -19,6 +20,8 @@ import Farm           from '../components/Farm'
 import Refrigerator   from '../components/Refrigerator'
 import OrderDesk      from '../components/OrderDesk'
 import Kitchen        from '../components/Kitchen'
+import Sink           from '../components/Sink'
+import Grill          from '../components/Grill'
 import MessagePanel   from '../components/MessagePanel'
 import AchievementsPanel from '../components/AchievementsPanel'
 import WeeklyChallenge   from '../components/WeeklyChallenge'
@@ -70,6 +73,8 @@ export default function GamePage() {
   const [pendingOrders, setPendingOrders] = useState([])
   const [otherPlayer,   setOtherPlayer]   = useState(null)
   const [carrying,      setCarrying]      = useState(null)
+  const [grill,         setGrill]         = useState(null)
+  const [cookingStageIndex, setCookingStageIndex] = useState(0)
 
   const [modal,     setModal]     = useState(null)
   const [celebrate, setCelebrate] = useState(null)
@@ -123,6 +128,7 @@ export default function GamePage() {
     const u5 = watchOrders(familyId, setPendingOrders)
     const u6 = watchOtherPosition(familyId, role, setOtherPlayer)
     const u7 = watchFamilyMeta(familyId, setFamilyMeta)
+    const u9 = watchGrill(familyId, setGrill)
     const u8 = watchWeeklyChallenge(familyId, (data) => {
       const prev = weeklyData
       setWeeklyData(data)
@@ -133,14 +139,28 @@ export default function GamePage() {
         setTimeout(() => setWeeklyDonePop(false), 4000)
       }
     })
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8() }
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); u9() }
   }, [familyId, role])
 
   useEffect(() => {
     if (!familyId) return
     deliverPendingOrders(familyId)
     syncFarmStage(familyId)
+    syncGrillStage(familyId)
+    // 백그라운드 주기적 동기화 (30초마다) — 모달 열지 않아도 단계 전환 감지
+    const id = setInterval(() => {
+      syncFarmStage(familyId)
+      syncGrillStage(familyId)
+    }, 30_000)
+    return () => clearInterval(id)
   }, [familyId])
+
+  // Firestore gameState.cookingStage 변경 시 로컬 state 동기화
+  useEffect(() => {
+    if (gameState?.cookingStage !== undefined) {
+      setCookingStageIndex(gameState.cookingStage)
+    }
+  }, [gameState?.cookingStage])
 
   /* ── 위치 동기화 ── */
   const handlePositionChange = useCallback(({ x, y }) => {
@@ -151,14 +171,15 @@ export default function GamePage() {
   /* ── 상호작용 핸들러 ── */
   const handleInteract = useCallback((objectId) => {
     if (carrying) {
-      if (objectId === 'fridge' || objectId === 'sink') {
-        storeVeggiesInFridge(familyId, carrying.qty)
-          .then(() => {
-            sendMessage(familyId, user?.uid, role,
-              `${carrying.emoji} ${carrying.label} ${carrying.qty}개를 냉장고에 넣었어요! 🧊`, true)
-            setCarrying(null)
-          })
-          .catch(e => console.error(e))
+      // 씽크대: 씻기 미니게임
+      if (objectId === 'sink') {
+        setModal('sink')
+        return
+      }
+      // 냉장고: 씻지 않은 채소는 직접 넣기 불가 (씽크대로 유도)
+      if (objectId === 'fridge') {
+        // 이미 씻은 경우(washDone 플래그) 또는 채소가 아닌 경우엔 냉장고 모달
+        setModal('fridge')
         return
       }
       if (objectId === 'farm_tomato' || objectId === 'farm_lettuce') return
@@ -167,11 +188,24 @@ export default function GamePage() {
       farm_tomato:  'farm_tomato',
       farm_lettuce: 'farm_lettuce',
       fridge:       'fridge',
-      sink:         'fridge',
+      grill:        'grill',
       kitchen:      'kitchen',
       order:        'order',
     }
     setModal(map[objectId] ?? null)
+  }, [carrying, familyId, role, user])
+
+  /* ── 씻기 완료 → 냉장고 저장 ── */
+  const handleWashComplete = useCallback((cropType, qty) => {
+    if (!carrying) return
+    storeVeggiesInFridge(familyId, qty, cropType)
+      .then(() => {
+        sendMessage(familyId, user?.uid, role,
+          `${carrying.emoji} ${carrying.label} ${qty}개를 씻어서 냉장고에 넣었어요! 🧊`, true)
+        setCarrying(null)
+        setModal(null)
+      })
+      .catch(e => console.error(e))
   }, [carrying, familyId, role, user])
 
   /* ── 수확 콜백 ── */
@@ -380,7 +414,7 @@ export default function GamePage() {
         >
           <span>
             {carrying.emoji} {carrying.label} {carrying.qty}개 손에 들었어요!
-            <span className="ml-2 opacity-80 font-normal text-xs">→ 냉장고로 가져가세요</span>
+            <span className="ml-2 opacity-80 font-normal text-xs">→ 씽크대에서 씻어요 🚿</span>
           </span>
           <button
             onClick={() => setCarrying(null)}
@@ -397,6 +431,7 @@ export default function GamePage() {
           farmTomato={farmTomato}
           farmLettuce={farmLettuce}
           inventory={inventory}
+          grill={grill}
           carrying={carrying}
           otherPlayerPos={otherPlayer}
           otherPlayerRole={otherPlayer?.role}
@@ -451,6 +486,9 @@ export default function GamePage() {
             {modal === 'fridge' && (
               <Refrigerator inventory={inventory} onClose={() => setModal(null)} />
             )}
+            {modal === 'grill' && (
+              <Grill grill={grill} inventory={inventory} onClose={() => setModal(null)} />
+            )}
             {modal === 'order' && (
               <OrderDesk pendingOrders={pendingOrders} onClose={() => setModal(null)} />
             )}
@@ -459,6 +497,18 @@ export default function GamePage() {
                 gameState={gameState}
                 inventory={inventory}
                 onComplete={handleBurgerComplete}
+                onClose={() => setModal(null)}
+                initialStage={cookingStageIndex}
+                onStageAdvance={(next) => {
+                  setCookingStageIndex(next)
+                  updateCookingStage(familyId, next).catch(() => {})
+                }}
+              />
+            )}
+            {modal === 'sink' && (
+              <Sink
+                carrying={carrying}
+                onWashComplete={handleWashComplete}
                 onClose={() => setModal(null)}
               />
             )}

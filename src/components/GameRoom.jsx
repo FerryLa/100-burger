@@ -533,7 +533,7 @@ export default function GameRoom({
         return { text: '🌱 싹 트는 중', color: '#65a30d' }
     }
     if (id === 'fridge') {
-      const v = inventory?.veggies || 0
+      const v = (inventory?.tomatoes || 0) + (inventory?.lettuces || 0)
       if (v === 0) return { text: '비었어요', color: '#9ca3af' }
       return { text: `채소 ${v}개`, color: '#16a34a' }
     }

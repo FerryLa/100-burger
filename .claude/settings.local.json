@@ -19,7 +19,23 @@
       "Bash(npx vite build)",
       "Bash(curl -s http://localhost:5176/)",
       "Bash(taskkill /F /IM node.exe)",
-      "Bash(node --input-type=module:*)"
+      "Bash(node --input-type=module:*)",
+      "Bash(git add src/data/achievements.js src/components/AchievementsPanel.jsx src/firebase/gameService.js src/store/useGameStore.js src/pages/GamePage.jsx src/index.css)",
+      "Bash(git commit:*)",
+      "Bash(git add src/data/weeklyChallenges.js src/components/WeeklyChallenge.jsx src/firebase/gameService.js src/pages/GamePage.jsx)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(git add src/store/useGameStore.js src/pages/GamePage.jsx src/pages/WaitingPage.jsx)",
+      "Bash(git add src/components/GameRoom3D.jsx src/pages/GamePage.jsx src/components/Kitchen.jsx)",
+      "Bash(git add src/firebase/gameService.js src/pages/GamePage.jsx src/components/OrderDesk.jsx)",
+      "Bash(git add src/firebase/gameService.js src/components/Farm.jsx src/components/OrderDesk.jsx)",
+      "Bash(git add src/firebase/gameService.js)",
+      "Bash(git add src/firebase/gameService.js src/pages/GamePage.jsx)",
+      "Bash(git add src/components/GameRoom3D.jsx)",
+      "Bash(git add src/components/Sink.jsx src/components/Grill.jsx)",
+      "Bash(git add src/components/Kitchen.jsx)",
+      "Bash(git add src/components/Refrigerator.jsx src/components/Farm.jsx)",
+      "Bash(git add src/pages/GamePage.jsx src/components/GameRoom.jsx .claude/settings.local.json)"
     ]
   }
 }
