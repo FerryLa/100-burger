@@ -10,8 +10,9 @@
  *   - date: string (하루 1사이클)
  *
  * families/{familyId}/inventory (단일 문서 'current')
- *   - veggies: number
- *   - veggieHarvestedAt, veggieExpiresAt: timestamp
+ *   - tomatoes: number
+ *   - lettuces: number
+ *   - tomatoExpiresAt, lettuceExpiresAt: timestamp (수확 후 3일)
  *   - bread, patty, bacon, sauce: number
  *
  * families/{familyId}/orders/{orderId}
@@ -41,6 +42,7 @@ const today = () => new Date().toISOString().split('T')[0]
 const FARM_DOC      = (fid, type) => doc(db, 'families', fid, 'farm', type)
 const INVENTORY_DOC = (fid) => doc(db, 'families', fid, 'inventory', 'current')
 const POSITION_DOC  = (fid, role) => doc(db, 'families', fid, 'positions', role)
+const GRILL_DOC     = (fid) => doc(db, 'families', fid, 'grill', 'current')
 
 // ─── 가족 ────────────────────────────────────────────────────────────────────
 
@@ -171,7 +173,7 @@ export async function waterFarm(familyId, cropType) {
     throw new Error('아직 물을 줄 수 없어요.')
   }
   const now   = Date.now()
-  const ready = new Date(now + 2 * 60 * 1000) // 2분 후 채소 준비
+  const ready = new Date(now + 110 * 1000) // 1분 50초 후 채소 준비
   await updateDoc(FARM_DOC(familyId, cropType), {
     stage:    'watered',
     wateredAt: Timestamp.fromMillis(now),
@@ -186,16 +188,17 @@ export async function waterFarm(familyId, cropType) {
 export async function harvestFarm(familyId, cropType) {
   const qty = await harvestFarmToHands(familyId, cropType)
 
-  // 인벤토리에 채소 추가
+  // 인벤토리에 채소 추가 (cropType별 분리)
   const now     = Date.now()
   const expires = new Date(now + 3 * 24 * 60 * 60 * 1000)
   const invSnap = await getDoc(INVENTORY_DOC(familyId))
   const inv     = invSnap.exists() ? invSnap.data() : {}
+  const vegKey  = cropType === 'tomato' ? 'tomatoes' : 'lettuces'
+  const expKey  = cropType === 'tomato' ? 'tomatoExpiresAt' : 'lettuceExpiresAt'
   await setDoc(INVENTORY_DOC(familyId), {
     ...inv,
-    veggies:           (inv.veggies || 0) + qty,
-    veggieHarvestedAt: Timestamp.fromMillis(now),
-    veggieExpiresAt:   Timestamp.fromMillis(expires.getTime()),
+    [vegKey]: (inv[vegKey] || 0) + qty,
+    [expKey]: Timestamp.fromMillis(expires.getTime()),
   }, { merge: true })
   return qty
 }
@@ -220,17 +223,18 @@ export async function harvestFarmToHands(familyId, cropType) {
   return 1 // 수확 수량 (하나씩)
 }
 
-/** 수확한 채소를 냉장고에 보관 */
-export async function storeVeggiesInFridge(familyId, qty) {
+/** 수확한 채소를 냉장고에 보관 (cropType: 'tomato' | 'lettuce') */
+export async function storeVeggiesInFridge(familyId, qty, cropType = 'tomato') {
   const now     = Date.now()
   const expires = new Date(now + 3 * 24 * 60 * 60 * 1000)
   const invSnap = await getDoc(INVENTORY_DOC(familyId))
   const inv     = invSnap.exists() ? invSnap.data() : {}
+  const vegKey  = cropType === 'tomato' ? 'tomatoes' : 'lettuces'
+  const expKey  = cropType === 'tomato' ? 'tomatoExpiresAt' : 'lettuceExpiresAt'
   await setDoc(INVENTORY_DOC(familyId), {
     ...inv,
-    veggies:           (inv.veggies || 0) + qty,
-    veggieHarvestedAt: Timestamp.fromMillis(now),
-    veggieExpiresAt:   Timestamp.fromMillis(expires.getTime()),
+    [vegKey]: (inv[vegKey] || 0) + qty,
+    [expKey]: Timestamp.fromMillis(expires.getTime()),
   }, { merge: true })
 }
 
@@ -347,7 +351,13 @@ export function watchGameState(familyId, callback) {
 
 export async function startBurger(familyId) {
   const ref = doc(db, 'families', familyId, 'gameState', today())
-  await setDoc(ref, { burgerStartedAt: serverTimestamp() }, { merge: true })
+  await setDoc(ref, { burgerStartedAt: serverTimestamp(), cookingStage: 0 }, { merge: true })
+}
+
+/** 조리 단계 갱신 (이탈 후 재진입 시 복원용) */
+export async function updateCookingStage(familyId, stage) {
+  const ref = doc(db, 'families', familyId, 'gameState', today())
+  await setDoc(ref, { cookingStage: stage }, { merge: true })
 }
 
 export async function completeBurger(familyId) {
@@ -419,12 +429,64 @@ export async function completeBurger(familyId) {
   }
 }
 
+// ─── 불판 ────────────────────────────────────────────────────────────────────
+
+/** 불판 실시간 구독 */
+export function watchGrill(familyId, callback) {
+  return onSnapshot(GRILL_DOC(familyId), (snap) => {
+    callback(snap.exists() ? snap.data() : null)
+  })
+}
+
+/**
+ * 불판에 패티+베이컨 올리기
+ * - inventory에서 patty:1, bacon:1 소비
+ * - grill doc: stage='grilling', doneAt = now + 60~90초 랜덤
+ */
+export async function startGrilling(familyId) {
+  const now    = Date.now()
+  const cookMs = (Math.floor(Math.random() * 31) + 60) * 1000   // 60~90초
+  await consumeIngredients(familyId, { patty: 1, bacon: 1 })
+  await setDoc(GRILL_DOC(familyId), {
+    stage:     'grilling',
+    startedAt: Timestamp.fromMillis(now),
+    doneAt:    Timestamp.fromMillis(now + cookMs),
+  })
+}
+
+/**
+ * 구운 패티+베이컨 걷어내기
+ * - grill doc stage → 'idle'
+ * - inventory에 grilledPatty:1, grilledBacon:1 추가
+ */
+export async function collectGrill(familyId) {
+  const snap  = await getDoc(GRILL_DOC(familyId))
+  const grill = snap.exists() ? snap.data() : null
+  if (!grill || grill.stage !== 'done') throw new Error('아직 다 구워지지 않았어요!')
+  await setDoc(GRILL_DOC(familyId), { stage: 'idle', startedAt: null, doneAt: null })
+  await addIngredients(familyId, { grilledPatty: 1, grilledBacon: 1 })
+}
+
+/** 불판 단계 자동 갱신 (grilling → done 감지) */
+export async function syncGrillStage(familyId) {
+  const snap  = await getDoc(GRILL_DOC(familyId))
+  if (!snap.exists()) return
+  const grill = snap.data()
+  if (grill.stage === 'grilling') {
+    const doneMs = grill.doneAt?.toMillis?.() ?? 0
+    if (Date.now() >= doneMs) {
+      await updateDoc(GRILL_DOC(familyId), { stage: 'done' })
+    }
+  }
+}
+
 /** 테스트용: 게임 상태 전체 초기화 */
 export async function resetGameState(familyId) {
   // 1) 인벤토리 초기화
   await setDoc(INVENTORY_DOC(familyId), {
-    veggies: 0, bread: 0, patty: 0, bacon: 0, sauce: 0,
-    veggieHarvestedAt: null, veggieExpiresAt: null,
+    tomatoes: 0, lettuces: 0, bread: 0, patty: 0, bacon: 0, sauce: 0,
+    grilledPatty: 0, grilledBacon: 0,
+    tomatoExpiresAt: null, lettuceExpiresAt: null,
   })
 
   // 2) 농장 초기화 (빈 밭 — date를 비워 '오늘 수확 완료' 잠금 해제)
@@ -440,8 +502,11 @@ export async function resetGameState(familyId) {
   // 3) 오늘 gameState 초기화
   const gsRef = doc(db, 'families', familyId, 'gameState', today())
   await setDoc(gsRef, {
-    burgerCount: 0, burgerStartedAt: null, burgerCompletedAt: null,
+    burgerCount: 0, burgerStartedAt: null, burgerCompletedAt: null, cookingStage: 0,
   })
+
+  // 3-1) 불판 초기화
+  await setDoc(GRILL_DOC(familyId), { stage: 'idle', startedAt: null, doneAt: null })
 
   // 4) 대기 중인 발주 취소 (모두 delivered 처리)
   const ordersQ = query(
