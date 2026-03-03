@@ -467,6 +467,11 @@ export async function collectGrill(familyId) {
   await addIngredients(familyId, { grilledPatty: 1, grilledBacon: 1 })
 }
 
+/** 불판 재료 버리기 (탄 경우) */
+export async function burnGrill(familyId) {
+  await setDoc(GRILL_DOC(familyId), { stage: 'idle', startedAt: null, doneAt: null })
+}
+
 /** 불판 단계 자동 갱신 (grilling → done 감지) */
 export async function syncGrillStage(familyId) {
   const snap  = await getDoc(GRILL_DOC(familyId))
