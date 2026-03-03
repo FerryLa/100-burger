@@ -21,7 +21,7 @@ const STAGE_INFO = {
   seed:      { emoji: '🌱', label: '새싹',         desc: '잘 자라고 있어요. 2시간 후 꽃이 피어요.' },
   growing:   { emoji: '🌿', label: '자라는 중',    desc: '조금만 더 기다려요...' },
   flowering: { emoji: '🌸', label: '꽃이 피었어요!', desc: '물을 주면 채소가 자라요!' },
-  watered:   { emoji: '💧', label: '물을 줬어요',  desc: '2분 후 채소를 수확할 수 있어요.' },
+  watered:   { emoji: '💧', label: '물을 줬어요',  desc: '1분 50초 후 채소를 수확할 수 있어요.' },
   ready:     { emoji: '✅', label: '수확 가능!',   desc: '채소가 다 자랐어요! 수확해서 들고 가세요.' },
   harvested: { emoji: '✅', label: '수확 완료',    desc: '오늘 수확은 끝났어요.' },
 }
@@ -64,10 +64,11 @@ export default function Farm({ farm, cropType, onHarvest, onClose }) {
   const toFlower = useCountdown(stage === 'seed' || stage === 'growing' ? flowerMs : 0)
   const toReady  = useCountdown(stage === 'watered' ? readyMs : 0)
 
-  // 주기적 서버 동기화
+  // 주기적 서버 동기화 (모달 열릴 때 즉시 + 15초마다)
   useEffect(() => {
     if (!familyId) return
     if (!['seed', 'growing', 'watered'].includes(stage)) return
+    syncFarmStage(familyId)   // 즉시 동기화 (단계 전환 누락 방지)
     const id = setInterval(() => syncFarmStage(familyId), 15_000)
     return () => clearInterval(id)
   }, [familyId, stage])
