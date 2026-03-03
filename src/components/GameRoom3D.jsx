@@ -15,8 +15,8 @@ const SX = ROOM.W / CW, SZ = ROOM.D / CH
 const CHAR_R = 20, SPEED = 3, INTERACT_D = 68
 
 const OBJS = [
-  { id: 'farm_tomato',  x: 80,  y: 108, label: '토마토밭' },
-  { id: 'farm_lettuce', x: 80,  y: 265, label: '상추밭'   },
+  { id: 'farm_tomato',  x: 140, y: 140, label: '수경재배기 (토마토)' },
+  { id: 'farm_lettuce', x: 140, y: 285, label: '수경재배기 (상추)'   },
   { id: 'fridge',       x: 252, y: 88,  label: '냉장고'   },
   { id: 'sink',         x: 355, y: 88,  label: '씽크대'   },
   { id: 'grill',        x: 456, y: 88,  label: '불판'     },
@@ -385,6 +385,67 @@ function buildFarmBed(scene, t, cropType, pos) {
     rail.position.set(pos.x, dy, pos.z - 0.88); scene.add(rail)
     const rail2 = rail.clone(); rail2.position.z = pos.z + 0.88; scene.add(rail2)
   })
+}
+
+/* ── 실내 수경재배기 (모던) ──────────────────────────────────── */
+function buildHydroponicUnit(scene, t, cropType, pos) {
+  const legMat  = lm(0xb8c4cc)
+  const isLet   = cropType === 'lettuce'
+  const leafCol = isLet ? (t.plantsAlt ?? 0x6ab87a) : (t.plants  ?? 0x4a9e5c)
+  const fruitCol = isLet ? null : (t.tomato ?? 0xcc4444)
+
+  // 다리 4개 (슬림 메탈)
+  ;[[-0.5, -0.65], [0.5, -0.65], [-0.5, 0.65], [0.5, 0.65]].forEach(([lx, lz]) => {
+    const leg = mkMesh(cyl(0.026, 0.026, 0.82), legMat)
+    leg.position.set(pos.x + lx, 0.41, pos.z + lz); scene.add(leg)
+  })
+
+  // 트레이 몸통 (흰색 사각 용기)
+  const tray = mkMesh(box(1.1, 0.18, 1.38), lm(0xedf1f4))
+  tray.position.set(pos.x, 0.91, pos.z); scene.add(tray)
+
+  // 물 (연한 파란색 반투명)
+  const water = mkMesh(box(1.0, 0.09, 1.28), lm(0x9ecfe0, { transparent: true, opacity: 0.60 }))
+  water.position.set(pos.x, 0.87, pos.z); scene.add(water)
+
+  // 덮개 패널 (연회색)
+  const lid = mkMesh(box(1.1, 0.032, 1.38), lm(0xdae0e5))
+  lid.position.set(pos.x, 1.006, pos.z); scene.add(lid)
+
+  // LED 지지대 암 (양쪽)
+  ;[-0.5, 0.5].forEach(lx => {
+    const arm = mkMesh(cyl(0.020, 0.020, 0.52), legMat)
+    arm.position.set(pos.x + lx, 1.27, pos.z); scene.add(arm)
+  })
+
+  // LED 성장등 바 (핑크/마젠타)
+  const led = mkMesh(box(1.08, 0.042, 0.068), lm(0xcc70aa))
+  led.position.set(pos.x, 1.53, pos.z); scene.add(led)
+  const ledGlow = mkMesh(box(1.06, 0.022, 0.11), bm(0xff88dd, { transparent: true, opacity: 0.50 }))
+  ledGlow.position.set(pos.x, 1.535, pos.z); scene.add(ledGlow)
+
+  // 식물 포드 (3열 × 2행)
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 2; j++) {
+      const px = pos.x - 0.30 + i * 0.30
+      const pz = pos.z - 0.42 + j * 0.84
+      const pod = mkMesh(cyl(0.06, 0.08, 0.09, 8), lm(0xf6f8fa))
+      pod.position.set(px, 1.02, pz); scene.add(pod)
+      const stem = mkMesh(cyl(0.014, 0.014, 0.18), lm(0x5c8a5c))
+      stem.position.set(px, 1.16, pz); scene.add(stem)
+      const leaf = mkMesh(sph(0.095, 8), lm(leafCol))
+      leaf.scale.set(isLet ? 1.55 : 1.2, 0.60, 1.1)
+      leaf.position.set(px, 1.265, pz); scene.add(leaf)
+      if (fruitCol) {
+        const fruit = mkMesh(sph(0.050, 8), lm(fruitCol))
+        fruit.position.set(px + 0.035, 1.21, pz + 0.035); scene.add(fruit)
+      }
+    }
+  }
+
+  // 바닥 그림자
+  const shd = mkMesh(cyl(0.62, 0.62, 0.018, 16), bm(0x000000, { transparent: true, opacity: 0.07 }))
+  shd.position.set(pos.x, 0.01, pos.z); scene.add(shd)
 }
 
 /* ── 잭과 콩나물 이벤트 콩나물 ────────────────────────────────── */
@@ -797,12 +858,17 @@ export default function GameRoom3D({
     const scene = buildScene(theme)
     sceneRef.current = scene
 
-    buildFarmBed(scene, t, 'tomato',  v3(75, 105))
-    buildFarmBed(scene, t, 'lettuce', v3(75, 255))
+    if (theme === 'modern') {
+      buildHydroponicUnit(scene, t, 'tomato',  v3(140, 140))
+      buildHydroponicUnit(scene, t, 'lettuce', v3(140, 285))
+    } else {
+      buildFarmBed(scene, t, 'tomato',  v3(140, 140))
+      buildFarmBed(scene, t, 'lettuce', v3(140, 285))
+    }
 
     // 잭과 콩나물 이벤트 콩나물 (기본 hidden)
-    bsRef.current.tomato  = buildBeanstalk(scene, v3(75, 105))
-    bsRef.current.lettuce = buildBeanstalk(scene, v3(75, 255))
+    bsRef.current.tomato  = buildBeanstalk(scene, v3(140, 140))
+    bsRef.current.lettuce = buildBeanstalk(scene, v3(140, 285))
 
     const meshes = []
     for (const obj of OBJS) {
