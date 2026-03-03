@@ -184,20 +184,6 @@ function buildScene(theme) {
     scene.add(grid)
   }
 
-  /* 러그 - 타일 그리드에 정렬 (3×2 타일 단위, 테라코타) */
-  if (theme === 'modern') {
-    const rugBorder = mkMesh(box(3.14, 0.018, 2.14), lm(0x9a6c48, { transparent: true, opacity: 0.65 }))
-    rugBorder.position.set(3.0, 0.018, 5.0)
-    scene.add(rugBorder)
-    const rug = mkMesh(box(3.0, 0.025, 2.0), lm(0xc49a6e, { transparent: true, opacity: 0.82 }))
-    rug.position.set(3.0, 0.025, 5.0)
-    scene.add(rug)
-    // 러그 안쪽 패턴 (십자 라인)
-    const rugH = mkMesh(box(2.8, 0.026, 0.04), lm(0xa87850, { transparent: true, opacity: 0.5 }))
-    rugH.position.set(3.0, 0.027, 5.0); scene.add(rugH)
-    const rugV = mkMesh(box(0.04, 0.026, 1.8), lm(0xa87850, { transparent: true, opacity: 0.5 }))
-    rugV.position.set(3.0, 0.027, 5.0); scene.add(rugV)
-  }
 
   /* 뒷벽 */
   const bw = mkMesh(box(ROOM.W + 0.2, ROOM.H, 0.18), lm(t.wBack))
@@ -227,18 +213,14 @@ function buildScene(theme) {
     m.position.set(px, py, pz); scene.add(m)
   })
 
-  /* 창문 */
-  if (theme === 'modern') {
-    buildModernWindow(scene, t, 5.0, 2.2, ROOM.H - 0.5)
-  } else {
+  /* 창문 - hanok만 유지 (modern은 도어처럼 보여 제거) */
+  if (theme === 'hanok') {
     buildHanokWindow(scene, t, 8.5, 1.8)
     buildHanokWindow(scene, t, 3.5, 1.4)
   }
 
   /* 왼쪽 벽 장식 */
-  if (theme === 'modern') {
-    buildLamp(scene, t)
-  } else {
+  if (theme === 'hanok') {
     buildHanokArt(scene, t)
     buildHanokLantern(scene, t)
   }
