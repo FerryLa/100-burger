@@ -811,6 +811,23 @@ function buildCharacter(type, t) {
   return group
 }
 
+/* ── 배지 애니메이션 CSS ─────────────────────────────────────── */
+const BADGE_CSS = `
+@keyframes bdBounce {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes bdPulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(0.88); opacity: 0.78; }
+}
+@keyframes bdWiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-14deg); }
+  75%      { transform: rotate(14deg); }
+}
+`
+
 /* ══ 메인 컴포넌트 ═══════════════════════════════════════════ */
 export default function GameRoom3D({
   farmTomato, farmLettuce, inventory, grill,
@@ -1076,26 +1093,32 @@ export default function GameRoom3D({
     }
   }, [onInteract])
 
-  /* ── 배지 텍스트 (순수 2D 계산 — Three.js 호출 없음) ── */
+  /* ── 배지 (순수 2D 계산 — Three.js 호출 없음) ── */
   function getBadge(id) {
     const farm = id === 'farm_tomato' ? farmTomato : id === 'farm_lettuce' ? farmLettuce : null
+    const cropEmoji = id === 'farm_tomato' ? '🍅' : '🥬'
     if (farm) {
-      if (farm.beanstalk)                       return { text: '🌱 잭! 콩나물이!', color: '#15803d' }
-      if (farm.stage === 'flowering')            return { text: '💧 물 줘요!',     color: '#3b82f6' }
-      if (farm.stage === 'ready')                return { text: '✅ 수확!',         color: '#16a34a' }
-      if (farm.stage === 'watered')              return { text: '🌿 자라는 중',     color: '#0d9488' }
-      if (['seed', 'growing'].includes(farm.stage)) return { text: '🌱 싹 트는 중', color: '#65a30d' }
+      if (farm.beanstalk)                          return { emojis: ['🌿','🌿','🌿'], anim: 'wiggle', bg: 'rgba(21,128,61,0.9)'   }
+      if (farm.stage === 'flowering')              return { emojis: ['💧','💧'],       anim: 'bounce', bg: 'rgba(59,130,246,0.9)'  }
+      if (farm.stage === 'ready')                  return { emojis: [cropEmoji,'✨'],  anim: 'bounce', bg: 'rgba(22,163,74,0.9)'   }
+      if (farm.stage === 'watered')                return { emojis: ['🌿','💧'],       anim: 'pulse',  bg: 'rgba(13,148,136,0.88)' }
+      if (['seed','growing'].includes(farm.stage)) return { emojis: ['🌱'],            anim: 'pulse',  bg: 'rgba(101,163,13,0.88)' }
     }
     if (id === 'fridge') {
-      const v = (inventory?.tomatoes || 0) + (inventory?.lettuces || 0)
-      return v === 0 ? { text: '비었어요', color: '#9ca3af' } : { text: `채소 ${v}개`, color: '#16a34a' }
+      const t = inventory?.tomatoes || 0
+      const l = inventory?.lettuces || 0
+      if (t === 0 && l === 0) return null
+      const items = []
+      for (let i = 0; i < Math.min(t, 2); i++) items.push('🍅')
+      for (let i = 0; i < Math.min(l, 2); i++) items.push('🥬')
+      return { emojis: items, anim: null, bg: 'rgba(22,163,74,0.9)' }
     }
     if (id === 'grill') {
       const gs = grill?.stage ?? 'idle'
-      if (gs === 'grilling') return { text: '🔥 굽는 중...', color: '#ea580c' }
-      if (gs === 'done')     return { text: '✅ 다 구워짐!', color: '#16a34a' }
+      if (gs === 'grilling') return { emojis: ['🥩','🥓','🔥'], anim: 'pulse',  bg: 'rgba(234,88,12,0.93)'  }
+      if (gs === 'done')     return { emojis: ['🥩','🥓','✅'], anim: 'bounce', bg: 'rgba(22,163,74,0.93)'  }
     }
-    if ((id === 'sink' || id === 'fridge') && carrying) return { text: '🧺 여기 놓기!', color: '#d97706' }
+    if ((id === 'sink' || id === 'fridge') && carrying) return { emojis: ['🧺'], anim: 'bounce', bg: 'rgba(217,119,6,0.9)' }
     return null
   }
 
@@ -1103,6 +1126,7 @@ export default function GameRoom3D({
 
   return (
     <div className="relative select-none" style={{ width: CW, height: CH }}>
+      <style>{BADGE_CSS}</style>
 
       {/* Three.js 캔버스 */}
       <canvas
@@ -1120,19 +1144,22 @@ export default function GameRoom3D({
       {OBJS.map(obj => {
         const badge = getBadge(obj.id)
         if (!badge) return null
+        const animProp = badge.anim === 'bounce' ? 'bdBounce 0.9s ease-in-out infinite'
+          : badge.anim === 'pulse'  ? 'bdPulse 1.5s ease-in-out infinite'
+          : badge.anim === 'wiggle' ? 'bdWiggle 0.75s ease-in-out infinite'
+          : undefined
         return (
           <div
             key={`badge-${obj.id}`}
-            className="absolute pointer-events-none font-black text-white whitespace-nowrap rounded-full shadow-lg"
-            style={{
-              left: obj.x,
-              top:  obj.y - 52,
-              transform: 'translate(-50%, -100%)',
-              background: badge.color,
-              fontSize: 11, padding: '2px 8px', zIndex: 20,
-            }}
+            className="absolute pointer-events-none"
+            style={{ left: obj.x, top: obj.y - 58, transform: 'translate(-50%, -100%)', zIndex: 20 }}
           >
-            {badge.text}
+            <div
+              className="flex items-center gap-0.5 rounded-2xl shadow-lg"
+              style={{ animation: animProp, background: badge.bg, padding: '4px 8px', fontSize: 19 }}
+            >
+              {badge.emojis.map((e, i) => <span key={i}>{e}</span>)}
+            </div>
           </div>
         )
       })}
